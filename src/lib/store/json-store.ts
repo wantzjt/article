@@ -16,6 +16,18 @@ import { loadGraphFromNeon, saveGraphToNeon } from "./neon";
 
 const DATA_PATH = path.join(process.cwd(), "data", "graph.json");
 
+function sanitizeGraph(graph: GraphSnapshot): GraphSnapshot {
+  for (const event of graph.spend) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(event.day)) {
+      const fromCreated = Date.parse(event.createdAt);
+      event.day = Number.isFinite(fromCreated)
+        ? new Date(fromCreated).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+    }
+  }
+  return graph;
+}
+
 function mergeSeedStubs(graph: GraphSnapshot): GraphSnapshot {
   const now = "2026-08-23T12:00:00.000Z";
   for (const entity of SEED_ENTITIES) {
@@ -46,15 +58,15 @@ async function load(): Promise<GraphSnapshot> {
   if (process.env.DATABASE_URL && !process.env.VITEST) {
     const fromNeon = await loadGraphFromNeon();
     if (fromNeon && fromNeon.topics.length > 0) {
-      memory = mergeSeedStubs(fromNeon);
+      memory = sanitizeGraph(mergeSeedStubs(fromNeon));
       return memory;
     }
   }
   try {
     const raw = await readFile(DATA_PATH, "utf8");
-    memory = mergeSeedStubs(JSON.parse(raw) as GraphSnapshot);
+    memory = sanitizeGraph(mergeSeedStubs(JSON.parse(raw) as GraphSnapshot));
   } catch {
-    memory = mergeSeedStubs(structuredClone(glm53Fixture));
+    memory = sanitizeGraph(mergeSeedStubs(structuredClone(glm53Fixture)));
   }
   if (process.env.DATABASE_URL && !process.env.VITEST) {
     try {
@@ -249,7 +261,10 @@ export async function recordSpend(input: Omit<SpendEvent, "id" | "createdAt" | "
     id: randomUUID(),
     day: now.toISOString().slice(0, 10),
     createdAt: now.toISOString(),
-    ...input,
+    stage: input.stage,
+    topicId: input.topicId,
+    model: input.model,
+    costUsd: input.costUsd,
   });
   await persist(graph);
 }

@@ -136,6 +136,45 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       }
     }
 
+    const priorSources = await store.listSources();
+    const priorByUrl = new Map(priorSources.map((source) => [source.canonicalUrl, source]));
+    const changedSources = persistedSources.filter((source) => {
+      const prior = priorByUrl.get(source.canonicalUrl);
+      return !prior || prior.contentHash !== source.contentHash;
+    });
+    const existingClaims = await store.listClaimsForTopic(topic.id);
+    if (
+      changedSources.length === 0 &&
+      existingClaims.some((claim) => claim.status !== "rejected")
+    ) {
+      await store.upsertTopic({
+        ...topic,
+        lastVerifiedAt: new Date().toISOString(),
+      });
+      logPipeline({
+        runId,
+        topicId: topic.id,
+        stage: "render",
+        sourceCount: persistedSources.length,
+        claimsProposed: 0,
+        claimsAccepted: existingClaims.filter((claim) => claim.status !== "rejected").length,
+        claimsRejected: 0,
+        durationMs: Date.now() - started,
+        model: PRIMARY_MODEL,
+        message: "skip_reextract_unchanged_sources",
+      });
+      await store.saveRun({
+        id: runId,
+        topicId: topic.id,
+        status: "completed",
+        stages: { discover: "done", extract: "done", verify: "done", render: "done" },
+        error: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      return { topicId: topic.id, runId };
+    }
+
     if (persistedSources.length === 0) {
       await store.upsertTopic({
         ...topic,
@@ -227,7 +266,6 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       candidates = next;
     }
 
-    const existingClaims = await store.listClaimsForTopic(topic.id);
     const accepted: ClaimRecord[] = [];
     const links: ClaimSourceRecord[] = [];
     let rejected = 0;

@@ -208,7 +208,15 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
       `INSERT INTO ai_spend_events (id, day, stage, topic_id, model, cost_usd, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (id) DO NOTHING`,
-      [event.id, event.day, event.stage, event.topicId, event.model, event.costUsd, event.createdAt],
+      [
+        event.id,
+        isoRequired(event.day).slice(0, 10),
+        event.stage,
+        event.topicId,
+        event.model,
+        event.costUsd,
+        event.createdAt,
+      ],
     );
   }
   for (const run of graph.runs) {
@@ -314,7 +322,7 @@ function mapVersion(row: Record<string, unknown>): TopicVersionRecord {
 function mapSpend(row: Record<string, unknown>): SpendEvent {
   return {
     id: String(row.id),
-    day: String(row.day).slice(0, 10),
+    day: isoRequired(row.day).slice(0, 10),
     stage: String(row.stage),
     topicId: row.topic_id ? String(row.topic_id) : null,
     model: String(row.model),
