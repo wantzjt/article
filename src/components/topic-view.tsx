@@ -150,7 +150,7 @@ export function TopicView({
           </p>
           {indexed ? null : (
             <p className="meta">
-              This topic is {graph.topic.status} and is not indexed.
+              This topic is {stub ? "a stub" : graph.topic.status} and is not indexed.
             </p>
           )}
           {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
