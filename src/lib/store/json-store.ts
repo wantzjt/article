@@ -12,6 +12,7 @@ import type {
 import { assembleTopic, emptyGraph, type GraphSnapshot, type PipelineRunRecord, type SpendEvent, type TopicGraph } from "./graph";
 import { glm53Fixture } from "@/lib/fixture/glm-5-3";
 import { SEED_ENTITIES } from "@/lib/seed/entities";
+import { loadGraphFromNeon, saveGraphToNeon } from "./neon";
 
 const DATA_PATH = path.join(process.cwd(), "data", "graph.json");
 
@@ -42,14 +43,27 @@ let writeQueue: Promise<void> = Promise.resolve();
 
 async function load(): Promise<GraphSnapshot> {
   if (memory) return memory;
+  if (process.env.DATABASE_URL && !process.env.VITEST) {
+    const fromNeon = await loadGraphFromNeon();
+    if (fromNeon && fromNeon.topics.length > 0) {
+      memory = mergeSeedStubs(fromNeon);
+      return memory;
+    }
+  }
   try {
     const raw = await readFile(DATA_PATH, "utf8");
     memory = mergeSeedStubs(JSON.parse(raw) as GraphSnapshot);
-    return memory;
   } catch {
     memory = mergeSeedStubs(structuredClone(glm53Fixture));
-    return memory;
   }
+  if (process.env.DATABASE_URL && !process.env.VITEST) {
+    try {
+      await saveGraphToNeon(memory);
+    } catch {
+      // Schema may not be applied yet; json/fixture still serves.
+    }
+  }
+  return memory;
 }
 
 async function persist(next: GraphSnapshot): Promise<void> {
@@ -61,6 +75,18 @@ async function persist(next: GraphSnapshot): Promise<void> {
       await writeFile(DATA_PATH, JSON.stringify(next, null, 2));
     } catch {
       // Read-only deployments keep the graph in memory for the instance.
+    }
+    if (process.env.DATABASE_URL) {
+      try {
+        await saveGraphToNeon(next);
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            kind: "citationforge.neon_persist_failed",
+            message: error instanceof Error ? error.message : "unknown",
+          }),
+        );
+      }
     }
   });
   await writeQueue;

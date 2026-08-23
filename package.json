@@ -11,7 +11,8 @@
     "test": "vitest run",
     "fixture:load": "tsx scripts/load-fixture.ts",
     "ingest": "dotenv -e .env.local -- tsx scripts/ingest-topic.ts",
-    "db:migrate": "dotenv -e .env.local -- tsx scripts/migrate.ts"
+    "db:migrate": "dotenv -e .env.local -- tsx scripts/migrate.ts",
+    "db:sync": "dotenv -e .env.local -- tsx scripts/sync-neon.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
