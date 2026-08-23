@@ -1,0 +1,18 @@
+import type { MetadataRoute } from "next";
+import { brand } from "@/lib/brand";
+import { listTopics } from "@/lib/store/json-store";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const topics = await listTopics();
+  const indexable = topics.filter((topic) => topic.status === "strong");
+  return [
+    { url: brand.siteUrl, changeFrequency: "hourly", priority: 1 },
+    { url: `${brand.siteUrl}/methodology`, changeFrequency: "monthly" },
+    { url: `${brand.siteUrl}/corrections`, changeFrequency: "monthly" },
+    ...indexable.map((topic) => ({
+      url: `${brand.siteUrl}/topic/${topic.slug}`,
+      lastModified: topic.lastVerifiedAt ?? topic.updatedAt,
+      changeFrequency: "hourly" as const,
+    })),
+  ];
+}

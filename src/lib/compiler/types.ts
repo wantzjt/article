@@ -1,0 +1,139 @@
+export const ENTITY_TYPES = [
+  "lab",
+  "model",
+  "infra",
+  "research",
+  "policy",
+] as const;
+export type EntityType = (typeof ENTITY_TYPES)[number];
+
+export const TOPIC_STATUSES = ["stub", "provisional", "strong"] as const;
+export type TopicStatus = (typeof TOPIC_STATUSES)[number];
+
+export const CLAIM_STATUSES = [
+  "supported",
+  "single_source",
+  "disputed",
+  "unresolved",
+  "superseded",
+  "rejected",
+] as const;
+export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
+
+export const SUPPORT_TYPES = ["supports", "disputes", "contextualizes"] as const;
+export type SupportType = (typeof SUPPORT_TYPES)[number];
+
+export const SOURCE_TYPES = [
+  "official",
+  "docs",
+  "github",
+  "arxiv",
+  "filing",
+  "transcript",
+  "reporting",
+  "unknown",
+] as const;
+export type SourceType = (typeof SOURCE_TYPES)[number];
+
+export const PRIMARY_STATUSES = ["primary", "secondary", "unknown"] as const;
+export type PrimaryStatus = (typeof PRIMARY_STATUSES)[number];
+
+export type SeedEntity = {
+  slug: string;
+  name: string;
+  entityType: EntityType;
+  description: string;
+  aliases: string[];
+  officialDomains: string[];
+  launchDemo?: boolean;
+};
+
+export type SourceRecord = {
+  id: string;
+  canonicalUrl: string;
+  title: string;
+  publisher: string;
+  publisherDomain: string;
+  author: string | null;
+  publishedAt: string | null;
+  retrievedAt: string;
+  sourceType: SourceType;
+  primaryStatus: PrimaryStatus;
+  contentHash: string;
+  evidenceExcerpt: string;
+  metadata: Record<string, unknown>;
+};
+
+export type ClaimRecord = {
+  id: string;
+  topicId: string;
+  claimText: string;
+  normalizedClaim: string;
+  status: ClaimStatus;
+  firstSeenAt: string;
+  lastVerifiedAt: string | null;
+  supersededAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClaimSourceRecord = {
+  claimId: string;
+  sourceId: string;
+  supportType: SupportType;
+  evidenceExcerpt: string;
+  createdAt: string;
+};
+
+export type TopicRecord = {
+  id: string;
+  slug: string;
+  name: string;
+  entityType: EntityType;
+  description: string;
+  aliases: string[];
+  officialDomains: string[];
+  status: TopicStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastVerifiedAt: string | null;
+  lastMaterialChangeAt: string | null;
+};
+
+export type BriefRecord = {
+  id: string;
+  topicId: string;
+  slug: string;
+  headline: string;
+  summary: string;
+  windowStart: string;
+  windowEnd: string;
+  publishedAt: string;
+  status: "draft" | "published" | "rejected";
+  renderData: { claimIds: string[] };
+};
+
+export type TopicVersionRecord = {
+  id: string;
+  topicId: string;
+  createdAt: string;
+  materialHash: string;
+  claimSnapshot: unknown;
+  changeSummary: string;
+};
+
+export type PipelineStage =
+  | "discover"
+  | "cluster"
+  | "extract"
+  | "verify"
+  | "render";
+
+export type CandidateClaim = {
+  claimText: string;
+  sourceId: string;
+  evidenceExcerpt: string;
+  dates: string[];
+  numbers: string[];
+  entities: string[];
+};

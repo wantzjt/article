@@ -1,0 +1,294 @@
+import type { GraphSnapshot } from "@/lib/store/graph";
+
+const T = "2026-08-21T16:00:00.000Z";
+const T0 = "2026-08-14T00:00:00.000Z";
+const T1 = "2026-08-13T00:00:00.000Z";
+const T2 = "2026-08-17T00:00:00.000Z";
+const NOW = "2026-08-23T12:00:00.000Z";
+
+const TOPIC_ID = "topic_glm53";
+
+const sources = {
+  zai: {
+    id: "src_zai_glm53",
+    canonicalUrl: "https://z.ai/blog/glm-5.3",
+    title: "Introducing GLM-5.3",
+    publisher: "Z.ai",
+    publisherDomain: "z.ai",
+    author: null,
+    publishedAt: T0,
+    retrievedAt: T,
+    sourceType: "official" as const,
+    primaryStatus: "primary" as const,
+    contentHash: "hash_zai_glm53",
+    evidenceExcerpt:
+      "GLM-5.3 is Z.ai's flagship model with a 1M-token context window, 128K max output, native tool calling, and structured output. It is available via the Z.ai API as glm-5.3.",
+    metadata: { fixture: true },
+  },
+  gateway: {
+    id: "src_vercel_gateway_models",
+    canonicalUrl: "https://vercel.com/ai-gateway/models/glm-5.3",
+    title: "GLM-5.3 on Vercel AI Gateway",
+    publisher: "Vercel",
+    publisherDomain: "vercel.com",
+    author: null,
+    publishedAt: T2,
+    retrievedAt: T,
+    sourceType: "docs" as const,
+    primaryStatus: "primary" as const,
+    contentHash: "hash_vercel_glm53",
+    evidenceExcerpt:
+      "AI Gateway exposes Z.ai GLM-5.3 at model id zai/glm-5.3. Requests authenticate with OIDC or an AI Gateway key. No separate Z.ai API key is required.",
+    metadata: { fixture: true },
+  },
+  changelog: {
+    id: "src_vercel_glm52_promo",
+    canonicalUrl: "https://vercel.com/changelog/glm-5-2-free-for-eve-agents-through-august-27-via-blackbox-on-ai-gateway",
+    title: "GLM 5.2 free for eve agents through August 27",
+    publisher: "Vercel",
+    publisherDomain: "vercel.com",
+    author: null,
+    publishedAt: T1,
+    retrievedAt: T,
+    sourceType: "docs" as const,
+    primaryStatus: "primary" as const,
+    contentHash: "hash_vercel_glm52_promo",
+    evidenceExcerpt:
+      "GLM 5.2 is free for eve agents through August 27, served by Blackbox on AI Gateway. After August 27, GLM 5.2 stays available on AI Gateway at standard provider rates.",
+    metadata: { fixture: true },
+  },
+  eve: {
+    id: "src_eve_docs_model",
+    canonicalUrl: "https://eve.dev/docs/agent-config",
+    title: "Agent configuration — eve",
+    publisher: "eve.dev",
+    publisherDomain: "eve.dev",
+    author: null,
+    publishedAt: T2,
+    retrievedAt: T,
+    sourceType: "docs" as const,
+    primaryStatus: "primary" as const,
+    contentHash: "hash_eve_default_model",
+    evidenceExcerpt:
+      "The root agent.ts can be omitted when no runtime config is needed. In that case, eve defaults to zai/glm-5.2.",
+    metadata: { fixture: true },
+  },
+  empirio: {
+    id: "src_empirio_glm53",
+    canonicalUrl: "https://empiriolabs.ai/models/glm-5-3",
+    title: "GLM 5.3 API: Pricing, Playground & Docs",
+    publisher: "EmpirioLabs",
+    publisherDomain: "empiriolabs.ai",
+    author: null,
+    publishedAt: T0,
+    retrievedAt: T,
+    sourceType: "reporting" as const,
+    primaryStatus: "secondary" as const,
+    contentHash: "hash_empirio_glm53",
+    evidenceExcerpt:
+      "Always reasons; thinking cannot be disabled. Reasoning effort: low, high, or max. Built-in web search adds $0.033 per request when used.",
+    metadata: { fixture: true },
+  },
+  exaPromo: {
+    id: "src_vercel_exa_promo",
+    canonicalUrl: "https://vercel.com/changelog/exa-web-search-free-through-august-31-on-ai-gateway-and-eve",
+    title: "Exa web search free through August 31 on AI Gateway and eve",
+    publisher: "Vercel",
+    publisherDomain: "vercel.com",
+    author: null,
+    publishedAt: T2,
+    retrievedAt: T,
+    sourceType: "docs" as const,
+    primaryStatus: "primary" as const,
+    contentHash: "hash_exa_promo",
+    evidenceExcerpt:
+      "Exa web search is now free on AI Gateway through August 31, and it's now the default web search for eve agents. The tool works with any AI Gateway model, with no separate Exa API key.",
+    metadata: { fixture: true },
+  },
+};
+
+const claims = {
+  available: {
+    id: "clm_available_gateway",
+    topicId: TOPIC_ID,
+    claimText: "Vercel AI Gateway serves GLM-5.3 at the model id zai/glm-5.3 without a direct Z.ai API key.",
+    normalizedClaim:
+      "vercel ai gateway serves glm 5 3 at the model id zai glm 5 3 without a direct z ai api key",
+    status: "supported" as const,
+    firstSeenAt: T2,
+    lastVerifiedAt: T,
+    supersededAt: null,
+    createdAt: T2,
+    updatedAt: T,
+  },
+  context: {
+    id: "clm_1m_context",
+    topicId: TOPIC_ID,
+    claimText: "Z.ai describes GLM-5.3 as a flagship model with a 1M-token context window and 128K maximum output.",
+    normalizedClaim:
+      "z ai describes glm 5 3 as a flagship model with a 1m token context window and 128k maximum output",
+    status: "supported" as const,
+    firstSeenAt: T0,
+    lastVerifiedAt: T,
+    supersededAt: null,
+    createdAt: T0,
+    updatedAt: T,
+  },
+  tools: {
+    id: "clm_tools_structured",
+    topicId: TOPIC_ID,
+    claimText: "GLM-5.3 supports native tool calling and structured output according to Z.ai.",
+    normalizedClaim: "glm 5 3 supports native tool calling and structured output according to z ai",
+    status: "supported" as const,
+    firstSeenAt: T0,
+    lastVerifiedAt: T,
+    supersededAt: null,
+    createdAt: T0,
+    updatedAt: T,
+  },
+  thinkingOff: {
+    id: "clm_thinking_off_dispute",
+    topicId: TOPIC_ID,
+    claimText: "Third-party API docs state GLM-5.3 always reasons and thinking cannot be disabled.",
+    normalizedClaim: "third party api docs state glm 5 3 always reasons and thinking cannot be disabled",
+    status: "disputed" as const,
+    firstSeenAt: T0,
+    lastVerifiedAt: T,
+    supersededAt: null,
+    createdAt: T0,
+    updatedAt: T,
+  },
+  nativeSearchPrice: {
+    id: "clm_native_search_price",
+    topicId: TOPIC_ID,
+    claimText: "EmpirioLabs documents Z.ai built-in web search as adding $0.033 per request when used.",
+    normalizedClaim:
+      "empiriolabs documents z ai built in web search as adding 0 033 per request when used",
+    status: "single_source" as const,
+    firstSeenAt: T0,
+    lastVerifiedAt: T,
+    supersededAt: null,
+    createdAt: T0,
+    updatedAt: T,
+  },
+  eveDefault: {
+    id: "clm_eve_default_52",
+    topicId: TOPIC_ID,
+    claimText: "Eve still defaults to zai/glm-5.2 when agent.ts is omitted, not GLM-5.3.",
+    normalizedClaim: "eve still defaults to zai glm 5 2 when agent ts is omitted not glm 5 3",
+    status: "supported" as const,
+    firstSeenAt: T2,
+    lastVerifiedAt: T,
+    supersededAt: null,
+    createdAt: T2,
+    updatedAt: T,
+  },
+  glm52Promo: {
+    id: "clm_glm52_eve_promo",
+    topicId: TOPIC_ID,
+    claimText: "Vercel listed GLM-5.2 as free for eve agents through August 27, 2026 via Blackbox on AI Gateway.",
+    normalizedClaim:
+      "vercel listed glm 5 2 as free for eve agents through august 27 2026 via blackbox on ai gateway",
+    status: "supported" as const,
+    firstSeenAt: T1,
+    lastVerifiedAt: T,
+    supersededAt: null,
+    createdAt: T1,
+    updatedAt: T,
+  },
+  exaFree: {
+    id: "clm_exa_gateway_free",
+    topicId: TOPIC_ID,
+    claimText: "Exa web search is free on AI Gateway through August 31, 2026, with no separate Exa API key, and is the default web search for eve agents.",
+    normalizedClaim:
+      "exa web search is free on ai gateway through august 31 2026 with no separate exa api key and is the default web search for eve agents",
+    status: "supported" as const,
+    firstSeenAt: T2,
+    lastVerifiedAt: T,
+    supersededAt: null,
+    createdAt: T2,
+    updatedAt: T,
+  },
+};
+
+export const glm53Fixture: GraphSnapshot = {
+  topics: [
+    {
+      id: TOPIC_ID,
+      slug: "glm-5-3",
+      name: "GLM-5.3",
+      entityType: "model",
+      description:
+        "Z.ai's GLM-5.3 is routed on Vercel AI Gateway as zai/glm-5.3. Availability, Eve defaults, reasoning behavior, and search pricing still disagree across sources.",
+      aliases: ["GLM 5.3", "glm-5.3", "zai/glm-5.3"],
+      officialDomains: ["z.ai", "bigmodel.cn", "vercel.com"],
+      status: "strong",
+      createdAt: T0,
+      updatedAt: T,
+      lastVerifiedAt: T,
+      lastMaterialChangeAt: T2,
+    },
+  ],
+  sources: Object.values(sources),
+  claims: Object.values(claims),
+  claimSources: [
+    { claimId: claims.available.id, sourceId: sources.gateway.id, supportType: "supports", evidenceExcerpt: sources.gateway.evidenceExcerpt, createdAt: T },
+    { claimId: claims.available.id, sourceId: sources.zai.id, supportType: "supports", evidenceExcerpt: sources.zai.evidenceExcerpt, createdAt: T },
+    { claimId: claims.context.id, sourceId: sources.zai.id, supportType: "supports", evidenceExcerpt: sources.zai.evidenceExcerpt, createdAt: T },
+    { claimId: claims.context.id, sourceId: sources.empirio.id, supportType: "supports", evidenceExcerpt: "Coding and agentic model with a 1M token context, 128K output.", createdAt: T },
+    { claimId: claims.tools.id, sourceId: sources.zai.id, supportType: "supports", evidenceExcerpt: sources.zai.evidenceExcerpt, createdAt: T },
+    { claimId: claims.thinkingOff.id, sourceId: sources.empirio.id, supportType: "supports", evidenceExcerpt: sources.empirio.evidenceExcerpt, createdAt: T },
+    { claimId: claims.thinkingOff.id, sourceId: sources.zai.id, supportType: "disputes", evidenceExcerpt: "GLM-5.3 is Z.ai's flagship model with a 1M-token context window, 128K max output, native tool calling, and structured output. It is available via the Z.ai API as glm-5.3.", createdAt: T },
+    { claimId: claims.nativeSearchPrice.id, sourceId: sources.empirio.id, supportType: "supports", evidenceExcerpt: sources.empirio.evidenceExcerpt, createdAt: T },
+    { claimId: claims.eveDefault.id, sourceId: sources.eve.id, supportType: "supports", evidenceExcerpt: sources.eve.evidenceExcerpt, createdAt: T },
+    { claimId: claims.glm52Promo.id, sourceId: sources.changelog.id, supportType: "supports", evidenceExcerpt: sources.changelog.evidenceExcerpt, createdAt: T },
+    { claimId: claims.exaFree.id, sourceId: sources.exaPromo.id, supportType: "supports", evidenceExcerpt: sources.exaPromo.evidenceExcerpt, createdAt: T },
+  ],
+  briefs: [
+    {
+      id: "brief_glm53_gateway",
+      topicId: TOPIC_ID,
+      slug: "glm-5-3-on-gateway-and-eve-defaults",
+      headline: "GLM-5.3 is on AI Gateway; Eve still boots GLM-5.2",
+      summary:
+        "Gateway now lists zai/glm-5.3. Eve's no-config default remains zai/glm-5.2. Exa search on Gateway is promotional through August 31.",
+      windowStart: T1,
+      windowEnd: T2,
+      publishedAt: T2,
+      status: "published",
+      renderData: {
+        claimIds: [claims.available.id, claims.eveDefault.id, claims.exaFree.id],
+      },
+    },
+  ],
+  versions: [
+    {
+      id: "ver_glm53_launch",
+      topicId: TOPIC_ID,
+      createdAt: T0,
+      materialHash: "mat_glm53_launch",
+      claimSnapshot: { claimIds: [claims.context.id, claims.tools.id] },
+      changeSummary: "Z.ai introduced GLM-5.3 with 1M context and tool calling.",
+    },
+    {
+      id: "ver_glm53_gateway",
+      topicId: TOPIC_ID,
+      createdAt: T2,
+      materialHash: "mat_glm53_gateway",
+      claimSnapshot: {
+        claimIds: [
+          claims.available.id,
+          claims.context.id,
+          claims.tools.id,
+          claims.eveDefault.id,
+          claims.exaFree.id,
+        ],
+      },
+      changeSummary: "AI Gateway listing and Eve default split from the Z.ai launch notes.",
+    },
+  ],
+  spend: [],
+  runs: [],
+};
+
+export const FIXTURE_GENERATED_AT = NOW;
