@@ -20,6 +20,7 @@ export const EXA_NUM_RESULTS = Number(process.env.EXA_NUM_RESULTS ?? "8");
 export const EXA_CONCURRENCY = Number(process.env.EXA_CONCURRENCY ?? "6");
 
 export const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
+export const TTS_MODEL = process.env.TTS_MODEL ?? "fish-audio/s2.1-pro";
 
 export function hasDatabase(): boolean {
   return Boolean(process.env.DATABASE_URL);

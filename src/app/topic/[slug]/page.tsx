@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { brand } from "@/lib/brand";
 import { TopicView } from "@/components/topic-view";
+import { playMeta } from "@/lib/audio/brief";
 import { jsonLd, robotsForStatus } from "@/lib/render/topic-view";
 import { getTopicBySlug } from "@/lib/store/json-store";
 
@@ -35,7 +36,7 @@ export default async function TopicPage({ params }: Props) {
           This topic is {graph.topic.status} and is not indexed.
         </p>
       ) : null}
-      <TopicView graph={graph} />
+      <TopicView graph={graph} play={playMeta(graph)} />
       <p className="text-sm text-muted-foreground">
         <Link className="underline" href={`/topic/${graph.topic.slug}/md`}>
           Markdown

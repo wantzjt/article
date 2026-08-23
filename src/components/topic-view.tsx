@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { TopicPlay } from "@/components/topic-play";
 import type { TopicGraph } from "@/lib/store/graph";
 import { evidenceLabel, formatTime } from "@/lib/render/topic-view";
 
@@ -41,7 +42,13 @@ function ClaimBlock({
   );
 }
 
-export function TopicView({ graph }: { graph: TopicGraph }) {
+export function TopicView({
+  graph,
+  play,
+}: {
+  graph: TopicGraph;
+  play?: { slug: string; minutes: number } | null;
+}) {
   const accepted = graph.claims.filter((claim) => claim.status !== "rejected");
   const disagreements = accepted.filter((claim) => claim.status === "disputed");
   const changedIds = new Set(graph.briefs[0]?.renderData.claimIds ?? []);
@@ -60,6 +67,7 @@ export function TopicView({ graph }: { graph: TopicGraph }) {
           Last verified {formatTime(graph.topic.lastVerifiedAt)} · {graph.sources.length} sources ·{" "}
           {accepted.length} claims · {graph.topic.status}
         </p>
+        {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
       </header>
 
       <section id="what-changed">

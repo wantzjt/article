@@ -39,6 +39,10 @@ Authorization: Bearer $ADMIN_SECRET
 {"slug":"glm-5-3"}
 ```
 
+## Audio (Phase B)
+
+Play is enabled only on `glm-5-3`. Speech is generated from `scriptFromClaims` via AI Gateway model `fish-audio/s2.1-pro` (promo through 2026-09-18). Audio is cached by `topic_id + material_hash` in Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set, otherwise `data/audio/` (gitignored). No Fish API key. No autoplay.
+
 ## Seed
 
 ~50 checked-in AI entities in `src/lib/seed/entities.ts`. New topics are not created from arbitrary named strings. Launch demo topic: **GLM-5.3**.
