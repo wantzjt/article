@@ -133,6 +133,11 @@ export async function findSourceByUrl(canonicalUrl: string): Promise<SourceRecor
   return graph.sources.find((row) => row.canonicalUrl === canonicalUrl) ?? null;
 }
 
+export async function listSources(): Promise<SourceRecord[]> {
+  const graph = await load();
+  return graph.sources;
+}
+
 export async function listClaimsForTopic(topicId: string): Promise<ClaimRecord[]> {
   const graph = await load();
   return graph.claims.filter((claim) => claim.topicId === topicId);

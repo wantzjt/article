@@ -1,8 +1,22 @@
-import { generateText, gateway, Output, stepCountIs } from "ai";
+import {
+  extractJsonMiddleware,
+  generateText,
+  gateway,
+  NoObjectGeneratedError,
+  Output,
+  stepCountIs,
+  tool,
+  wrapLanguageModel,
+} from "ai";
 import type { ZodType } from "zod";
 import { PRIMARY_MODEL } from "@/lib/env";
 import { estimateCostUsd } from "@/lib/compiler/spend";
 import type { PipelineStage } from "@/lib/compiler/types";
+
+const structuredModel = wrapLanguageModel({
+  model: gateway(PRIMARY_MODEL),
+  middleware: extractJsonMiddleware(),
+});
 
 export type GatewayCallMeta = {
   stage: PipelineStage;
@@ -17,6 +31,25 @@ function tagsFor(stage: PipelineStage, topicId?: string): string[] {
   return tags;
 }
 
+function structuredFailure(stage: PipelineStage, error: unknown): Error {
+  if (NoObjectGeneratedError.isInstance(error)) {
+    const snippet = (error.text ?? "").replace(/\s+/g, " ").slice(0, 280);
+    return new Error(
+      `structured output failed at ${stage}: ${error.message}${snippet ? ` :: ${snippet}` : ""}`,
+    );
+  }
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function usageOf(result: { totalUsage?: { inputTokens?: number; outputTokens?: number } }) {
+  return result.totalUsage
+    ? {
+        inputTokens: result.totalUsage.inputTokens,
+        outputTokens: result.totalUsage.outputTokens,
+      }
+    : undefined;
+}
+
 export async function generateStructured<T>(input: {
   stage: PipelineStage;
   topicId?: string;
@@ -24,10 +57,22 @@ export async function generateStructured<T>(input: {
   prompt: string;
   schema: ZodType<T>;
 }): Promise<{ object: T; meta: GatewayCallMeta }> {
+  let submitted: T | null = null;
   const result = await generateText({
     model: gateway(PRIMARY_MODEL),
-    output: Output.object({ schema: input.schema }),
-    system: input.system,
+    tools: {
+      submit_result: tool({
+        description: "Submit the structured result. Do not write prose; call this tool.",
+        inputSchema: input.schema,
+        execute: async (object) => {
+          submitted = input.schema.parse(object);
+          return { ok: true };
+        },
+      }),
+    },
+    toolChoice: { type: "tool", toolName: "submit_result" },
+    stopWhen: stepCountIs(2),
+    system: `${input.system}\nYou must call submit_result. Never wrap the payload in an "answer" string.`,
     prompt: input.prompt,
     providerOptions: {
       gateway: {
@@ -35,18 +80,47 @@ export async function generateStructured<T>(input: {
       },
     },
   });
-  if (result.output == null) {
-    throw new Error(`structured output missing for stage ${input.stage}`);
+
+  if (submitted == null) {
+    const fallback = result.toolResults.find((row) => row.toolName === "submit_result");
+    if (fallback && "input" in fallback) {
+      submitted = input.schema.parse(fallback.input);
+    }
   }
-  const object = input.schema.parse(result.output);
-  const usage = result.totalUsage
-    ? {
-        inputTokens: result.totalUsage.inputTokens,
-        outputTokens: result.totalUsage.outputTokens,
+
+  if (submitted == null) {
+    try {
+      const objectResult = await generateText({
+        model: structuredModel,
+        output: Output.object({ schema: input.schema }),
+        system: `${input.system}\nReturn only JSON matching the schema.`,
+        prompt: input.prompt,
+        providerOptions: {
+          gateway: { tags: tagsFor(input.stage, input.topicId) },
+        },
+      });
+      if (objectResult.output == null) {
+        throw new Error(`structured output missing for stage ${input.stage}`);
       }
-    : undefined;
+      submitted = input.schema.parse(objectResult.output);
+      const usage = usageOf(objectResult);
+      return {
+        object: submitted,
+        meta: {
+          stage: input.stage,
+          topicId: input.topicId,
+          usage,
+          costUsd: estimateCostUsd(usage),
+        },
+      };
+    } catch (error) {
+      throw structuredFailure(input.stage, error);
+    }
+  }
+
+  const usage = usageOf(result);
   return {
-    object,
+    object: submitted,
     meta: {
       stage: input.stage,
       topicId: input.topicId,

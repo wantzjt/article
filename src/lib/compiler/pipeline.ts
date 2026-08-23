@@ -57,6 +57,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     updatedAt: new Date().toISOString(),
   });
 
+  let stage: "discover" | "extract" | "verify" | "render" = "discover";
   try {
     assertUnderModelCap(await store.modelSpendTodayUsd());
 
@@ -65,27 +66,36 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       `${entity.name} pricing availability`,
       `${entity.name} benchmark evaluation dispute`,
     ];
-    const { result, meta: discoverMeta } = await generateWithExaSearch({
-      stage: "discover",
-      topicId: topic.id,
-      exa: exaSearchTool({
-        category: entity.entityType === "research" ? "research paper" : "news",
-        startPublishedDate: daysAgoIso(21),
-      }),
-      system:
-        "You retrieve evidence. Call exa_search for official, independent, and recent reporting. Do not write an article. Do not invent URLs. After searching, list only the queries you ran.",
-      prompt: `Topic: ${entity.name} (${entity.slug})\nOfficial domains: ${entity.officialDomains.join(", ")}\nRun searches:\n- ${queries.join("\n- ")}`,
-    });
-    await store.recordSpend({
-      stage: "discover",
-      topicId: topic.id,
-      model: PRIMARY_MODEL,
-      costUsd: discoverMeta.costUsd,
+    const cutoff = Date.now() - 48 * 3600 * 1000;
+    const cachedSources = (await store.listSources()).filter((source) => {
+      const via = source.metadata?.via;
+      const retrieved = Date.parse(source.retrievedAt);
+      return via === "ai-gateway:exaSearch" && Number.isFinite(retrieved) && retrieved >= cutoff;
     });
 
-    const discovered = collectExaSources(result.toolResults ?? [], queries);
     const persistedSources: SourceRecord[] = [];
-    for (const hit of discovered) {
+    if (cachedSources.length >= 8) {
+      persistedSources.push(...cachedSources);
+    } else {
+      const { result, meta: discoverMeta } = await generateWithExaSearch({
+        stage: "discover",
+        topicId: topic.id,
+        exa: exaSearchTool({
+          category: entity.entityType === "research" ? "research paper" : "news",
+          startPublishedDate: daysAgoIso(21),
+        }),
+        system:
+          "You retrieve evidence. Call exa_search for official, independent, and recent reporting. Do not write an article. Do not invent URLs. After searching, list only the queries you ran.",
+        prompt: `Topic: ${entity.name} (${entity.slug})\nOfficial domains: ${entity.officialDomains.join(", ")}\nRun searches:\n- ${queries.join("\n- ")}`,
+      });
+      await store.recordSpend({
+        stage: "discover",
+        topicId: topic.id,
+        model: PRIMARY_MODEL,
+        costUsd: discoverMeta.costUsd,
+      });
+      const discovered = collectExaSources(result.toolResults ?? [], queries);
+      for (const hit of discovered) {
       const canonicalUrl = canonicalizeUrl(hit.canonicalUrl);
       const excerpt = hit.highlights.join(" ").slice(0, 800);
       const hash = contentHash([canonicalUrl, hit.title, excerpt]);
@@ -114,6 +124,16 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         metadata: { query: hit.query, via: "ai-gateway:exaSearch" },
       });
       persistedSources.push(source);
+      }
+    }
+
+    const seenSourceIds = new Set(persistedSources.map((source) => source.id));
+    for (const source of await store.listSources()) {
+      if (seenSourceIds.has(source.id)) continue;
+      if (entity.officialDomains.includes(source.publisherDomain)) {
+        persistedSources.push(source);
+        seenSourceIds.add(source.id);
+      }
     }
 
     if (persistedSources.length === 0) {
@@ -141,6 +161,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       )
       .join("\n\n");
 
+    stage = "extract";
     assertUnderModelCap(await store.modelSpendTodayUsd());
     const extracted = await generateStructured({
       stage: "extract",
@@ -158,16 +179,22 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     });
 
     const sourceIds = new Set(persistedSources.map((source) => source.id));
-    let candidates: CandidateClaim[] = extracted.object.claims
-      .filter((claim) => sourceIds.has(claim.sourceId))
-      .map((claim) => ({
-        claimText: claim.claimText,
-        sourceId: claim.sourceId,
-        evidenceExcerpt: claim.evidenceExcerpt,
-        dates: claim.dates ?? [],
-        numbers: claim.numbers ?? [],
-        entities: claim.entities ?? [],
-      }));
+    let candidates: CandidateClaim[] = extracted.object.claims.flatMap((claim) => {
+      if (!sourceIds.has(claim.source_id)) return [];
+      const source = persistedSources.find((row) => row.id === claim.source_id);
+      const excerpt = (claim.evidence_excerpt || source?.evidenceExcerpt || "").slice(0, 800);
+      if (!excerpt) return [];
+      return [
+        {
+          claimText: claim.claim,
+          sourceId: claim.source_id,
+          evidenceExcerpt: excerpt,
+          dates: claim.dates ?? [],
+          numbers: claim.numbers ?? [],
+          entities: claim.entities ?? [],
+        },
+      ];
+    });
     candidates = mergeDuplicateClaims(candidates);
 
     if (candidates.length > 1) {
@@ -204,6 +231,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     const accepted: ClaimRecord[] = [];
     const links: ClaimSourceRecord[] = [];
     let rejected = 0;
+    stage = "verify";
 
     for (const candidate of candidates) {
       const gated = gateCandidateClaim(candidate);
@@ -343,6 +371,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     const publicClaims = allClaims.filter((claim) =>
       ["supported", "single_source", "disputed"].includes(claim.status),
     );
+    stage = "render";
     assertUnderModelCap(await store.modelSpendTodayUsd());
     const rendered = await generateStructured({
       stage: "render",
@@ -432,7 +461,12 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       id: runId,
       topicId: topic.id,
       status: "failed",
-      stages: { discover: "failed" },
+      stages: {
+        discover: stage === "discover" ? "failed" : "done",
+        extract: stage === "extract" ? "failed" : stage === "discover" ? "pending" : "done",
+        verify: stage === "verify" ? "failed" : "pending",
+        render: stage === "render" ? "failed" : "pending",
+      },
       error: error instanceof Error ? error.message : "unknown",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
