@@ -20,15 +20,15 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#fafafa",
-          color: "#111",
+          background: "#f8f5ee",
+          color: "#3a342c",
           padding: 72,
         }}
       >
         <div style={{ fontSize: 28 }}>{brand.productName}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ fontSize: 64, lineHeight: 1.1 }}>{title}</div>
-          <div style={{ fontSize: 28, color: "#444", maxWidth: 900 }}>{dek}</div>
+          <div style={{ fontSize: 28, color: "#7a7166", maxWidth: 900 }}>{dek}</div>
         </div>
       </div>
     ),

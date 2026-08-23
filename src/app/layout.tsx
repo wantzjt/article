@@ -35,10 +35,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${sourceSerif.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
-        <SiteHeader />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">{children}</main>
-        <SiteFooter />
+      <body className="flex min-h-full flex-col bg-paper text-ink">
+        <div className="mx-auto flex min-h-full w-full max-w-[40rem] flex-1 flex-col px-4">
+          <SiteHeader />
+          <main className="flex-1 py-8 sm:py-10">{children}</main>
+          <SiteFooter />
+        </div>
       </body>
     </html>
   );

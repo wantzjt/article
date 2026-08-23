@@ -1,43 +1,112 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { StatusChip } from "@/components/status-chip";
 import { TopicPlay } from "@/components/topic-play";
-import type { TopicGraph } from "@/lib/store/graph";
-import { evidenceLabel, formatTime } from "@/lib/render/topic-view";
+import type { ClaimWithEvidence, TopicGraph } from "@/lib/store/graph";
+import { evidenceLabel, formatDate, formatTime } from "@/lib/render/topic-view";
 
-function ClaimBlock({
-  graph,
-  claimId,
+const SUPPORT_LABEL = {
+  supports: "Supports",
+  disputes: "Disputes",
+  contextualizes: "Context",
+} as const;
+
+function Section({
+  id,
+  title,
+  children,
 }: {
-  graph: TopicGraph;
-  claimId: string;
+  id: string;
+  title: string;
+  children: ReactNode;
 }) {
-  const claim = graph.claims.find((row) => row.id === claimId);
-  if (!claim || claim.status === "rejected") return null;
   return (
-    <article className="space-y-2 border-b border-border py-4 last:border-0">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline">{claim.status}</Badge>
-        <span className="text-xs text-muted-foreground">{evidenceLabel(graph, claim.id)}</span>
+    <section id={id} className="border-t border-rule pt-6">
+      <h2 className="kicker">{title}</h2>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function Empty({ children }: { children: ReactNode }) {
+  return <p className="text-[0.9375rem] leading-6 text-ink-quiet">{children}</p>;
+}
+
+function SourceList({ claim }: { claim: ClaimWithEvidence }) {
+  return (
+    <ul className="mt-3 space-y-3">
+      {claim.evidence.map((item) => (
+        <li key={`${item.source.id}-${item.supportType}`} className="text-[0.8125rem] leading-5">
+          <p className="meta">
+            {item.supportType}
+            {" · "}
+            <a
+              className="text-ink underline decoration-rule underline-offset-2 hover:decoration-ink"
+              href={item.source.canonicalUrl}
+              rel="nofollow noopener"
+            >
+              {item.source.publisherDomain}
+            </a>
+          </p>
+          <blockquote className="mt-1 text-ink-quiet">{item.evidenceExcerpt}</blockquote>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ClaimRow({ graph, claim }: { graph: TopicGraph; claim: ClaimWithEvidence }) {
+  return (
+    <article className="border-b border-rule py-3 last:border-0">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <StatusChip status={claim.status} />
+        <span className="meta">{evidenceLabel(graph, claim.id)}</span>
       </div>
-      <p className="font-serif text-lg leading-snug">{claim.claimText}</p>
-      <details className="text-sm text-muted-foreground">
-        <summary className="cursor-pointer">Sources</summary>
-        <ul className="mt-2 space-y-2">
-          {claim.evidence.map((item) => (
-            <li key={`${item.source.id}-${item.supportType}`}>
-              <span className="uppercase tracking-wide">{item.supportType}</span>
-              {" · "}
-              <a className="underline" href={item.source.canonicalUrl} rel="nofollow noopener">
-                {item.source.publisherDomain}
-              </a>
-              <blockquote className="mt-1 border-l pl-3 italic">
-                {item.evidenceExcerpt}
-              </blockquote>
-            </li>
-          ))}
-        </ul>
-      </details>
+      <p className="claim-sentence mt-2">{claim.claimText}</p>
+      {claim.evidence.length > 0 ? (
+        <details className="sources mt-2">
+          <summary className="meta hover:text-ink">Sources</summary>
+          <SourceList claim={claim} />
+        </details>
+      ) : null}
+    </article>
+  );
+}
+
+function SourcedPositions({ claim }: { claim: ClaimWithEvidence }) {
+  const groups = (["supports", "disputes", "contextualizes"] as const)
+    .map((supportType) => ({
+      supportType,
+      items: claim.evidence.filter((item) => item.supportType === supportType),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  return (
+    <article className="border-b border-rule py-3 last:border-0">
+      <p className="claim-sentence">{claim.claimText}</p>
+      <div className="mt-4 space-y-4">
+        {groups.map((group) => (
+          <div key={group.supportType}>
+            <p className="kicker">{SUPPORT_LABEL[group.supportType]}</p>
+            <ul className="mt-2 space-y-3">
+              {group.items.map((item) => (
+                <li key={`${item.source.id}-${item.supportType}`}>
+                  <p className="meta">
+                    <a
+                      className="text-ink underline decoration-rule underline-offset-2 hover:decoration-ink"
+                      href={item.source.canonicalUrl}
+                      rel="nofollow noopener"
+                    >
+                      {item.source.publisherDomain}
+                    </a>
+                  </p>
+                  <p className="mt-1 text-[0.8125rem] leading-5 text-ink-quiet">{item.evidenceExcerpt}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </article>
   );
 }
@@ -53,77 +122,89 @@ export function TopicView({
   const disagreements = accepted.filter((claim) => claim.status === "disputed");
   const changedIds = new Set(graph.briefs[0]?.renderData.claimIds ?? []);
   const changed = accepted.filter((claim) => changedIds.has(claim.id));
-  const whatChanged = changed.length ? changed : accepted.filter((claim) => claim.status === "supported").slice(0, 3);
+  const whatChanged = changed.length
+    ? changed
+    : accepted.filter((claim) => claim.status === "supported").slice(0, 3);
+  const stub = graph.topic.status === "stub";
+  const indexed = graph.topic.status === "strong";
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          {graph.topic.entityType}
+        <p className="kicker">{graph.topic.entityType}</p>
+        <h1 className={stub ? "font-serif text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
+          {graph.topic.name}
+        </h1>
+        <p className={`max-w-prose text-[0.9375rem] leading-6 ${stub ? "text-ink-quiet" : ""}`}>
+          {graph.topic.description}
         </p>
-        <h1 className="font-serif text-4xl tracking-tight">{graph.topic.name}</h1>
-        <p className="max-w-2xl text-lg text-muted-foreground">{graph.topic.description}</p>
-        <p className="text-sm text-muted-foreground">
-          Last verified {formatTime(graph.topic.lastVerifiedAt)} · {graph.sources.length} sources ·{" "}
-          {accepted.length} claims · {graph.topic.status}
-        </p>
-        {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
+        <div className="space-y-2">
+          <p className="meta">
+            Last verified {formatTime(graph.topic.lastVerifiedAt)}
+            {" · "}
+            {graph.sources.length} sources
+            {" · "}
+            {accepted.length} claims
+            {" · "}
+            <StatusChip status={graph.topic.status} />
+          </p>
+          {indexed ? null : (
+            <p className="meta">
+              This topic is {graph.topic.status} and is not indexed.
+            </p>
+          )}
+          {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
+        </div>
       </header>
 
-      <section id="what-changed">
-        <h2 className="text-xs uppercase tracking-[0.2em]">What Changed</h2>
-        <Separator className="my-3" />
+      <Section id="what-changed" title="What Changed">
         {whatChanged.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No material claim movement in the recent window.</p>
+          <Empty>
+            {stub
+              ? "No compiled claims yet. This topic is a stub."
+              : "No material claim movement in the recent window."}
+          </Empty>
         ) : (
-          whatChanged.map((claim) => <ClaimBlock key={claim.id} graph={graph} claimId={claim.id} />)
+          whatChanged.map((claim) => <ClaimRow key={claim.id} graph={graph} claim={claim} />)
         )}
-      </section>
+      </Section>
 
-      <section id="evidence">
-        <h2 className="text-xs uppercase tracking-[0.2em]">Evidence</h2>
-        <Separator className="my-3" />
-        {accepted.map((claim) => (
-          <ClaimBlock key={claim.id} graph={graph} claimId={claim.id} />
-        ))}
-      </section>
+      <Section id="evidence" title="Evidence">
+        {accepted.length === 0 ? (
+          <Empty>No accepted claims on this topic.</Empty>
+        ) : (
+          accepted.map((claim) => <ClaimRow key={claim.id} graph={graph} claim={claim} />)
+        )}
+      </Section>
 
-      <section id="disagreements">
-        <h2 className="text-xs uppercase tracking-[0.2em]">Disagreements</h2>
-        <Separator className="my-3" />
+      <Section id="disagreements" title="Disagreements">
         {disagreements.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No persisted contradictions.</p>
+          <Empty>No persisted contradictions.</Empty>
         ) : (
-          disagreements.map((claim) => (
-            <Card key={claim.id} className="mb-4">
-              <CardHeader>
-                <CardTitle className="font-serif text-xl">{claim.claimText}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                {claim.evidence.map((item) => (
-                  <p key={`${item.source.id}-${item.supportType}`}>
-                    <Badge variant="secondary">{item.supportType}</Badge> {item.source.publisherDomain}:{" "}
-                    {item.evidenceExcerpt}
-                  </p>
-                ))}
-              </CardContent>
-            </Card>
-          ))
+          disagreements.map((claim) => <SourcedPositions key={claim.id} claim={claim} />)
         )}
-      </section>
+      </Section>
 
-      <section id="timeline">
-        <h2 className="text-xs uppercase tracking-[0.2em]">Timeline</h2>
-        <Separator className="my-3" />
-        <ol className="space-y-4">
-          {graph.versions.map((version) => (
-            <li key={version.id}>
-              <p className="text-xs text-muted-foreground">{formatTime(version.createdAt)}</p>
-              <p className="font-serif">{version.changeSummary}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
+      <Section id="timeline" title="Timeline">
+        {graph.versions.length === 0 ? (
+          <Empty>No versions recorded.</Empty>
+        ) : (
+          <ol className="space-y-5">
+            {graph.versions.map((version) => (
+              <li key={version.id}>
+                <p className="meta">{formatDate(version.createdAt)}</p>
+                <p className="mt-1 text-[0.9375rem] leading-6 text-ink">{version.changeSummary}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </Section>
+
+      <p className="meta">
+        <Link href={`/topic/${graph.topic.slug}/md`} className="hover:text-ink">
+          Markdown
+        </Link>
+      </p>
     </div>
   );
 }

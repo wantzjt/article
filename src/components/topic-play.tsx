@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 
 export function TopicPlay({ slug, minutes }: { slug: string; minutes: number }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -36,12 +35,20 @@ export function TopicPlay({ slug, minutes }: { slug: string; minutes: number }) 
     setPlaying(true);
   }
 
+  const label = loading ? "Loading" : playing ? "Pause" : `Play · ~${minutes} min`;
+
   return (
-    <div className="flex items-center gap-3">
-      <Button type="button" variant="outline" onClick={onPlay} disabled={loading}>
-        {loading ? "Loading" : playing ? "Pause" : `Play · ~${minutes} min`}
-      </Button>
-      {error ? <span className="text-sm text-muted-foreground">{error}</span> : null}
+    <div className="flex flex-wrap items-baseline gap-3">
+      <button
+        type="button"
+        onClick={onPlay}
+        disabled={loading}
+        aria-pressed={playing}
+        className="meta border-b border-rule pb-0.5 text-ink-quiet hover:text-ink disabled:opacity-50"
+      >
+        {label}
+      </button>
+      {error ? <span className="meta">{error}</span> : null}
       <audio
         ref={audioRef}
         preload="none"
