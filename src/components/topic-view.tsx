@@ -3,7 +3,7 @@ import Link from "next/link";
 import { StatusChip } from "@/components/status-chip";
 import { TopicPlay } from "@/components/topic-play";
 import type { ClaimWithEvidence, TopicGraph } from "@/lib/store/graph";
-import { evidenceLabel, formatDate, formatTime } from "@/lib/render/topic-view";
+import { displayDek, evidenceLabel, formatDate, formatTime, shortExcerpt } from "@/lib/render/topic-view";
 
 const SUPPORT_LABEL = {
   supports: "Supports",
@@ -34,21 +34,23 @@ function Empty({ children }: { children: ReactNode }) {
 
 function SourceList({ claim }: { claim: ClaimWithEvidence }) {
   return (
-    <ul className="mt-3 space-y-3">
+    <ul className="mt-1 space-y-3 pb-3">
       {claim.evidence.map((item) => (
         <li key={`${item.source.id}-${item.supportType}`} className="text-[0.8125rem] leading-5">
-          <p className="meta">
+          <p className="font-mono text-[12px]/[16px] text-ink">
             {item.supportType}
             {" · "}
             <a
-              className="text-ink underline decoration-rule underline-offset-2 hover:decoration-ink"
+              className="underline decoration-rule underline-offset-2 hover:decoration-ink"
               href={item.source.canonicalUrl}
               rel="nofollow noopener"
             >
               {item.source.publisherDomain}
             </a>
           </p>
-          <blockquote className="mt-1 text-ink-quiet">{item.evidenceExcerpt}</blockquote>
+          <blockquote className="mt-1 text-ink-quiet">
+            {shortExcerpt(item.evidenceExcerpt)}
+          </blockquote>
         </li>
       ))}
     </ul>
@@ -64,8 +66,8 @@ function ClaimRow({ graph, claim }: { graph: TopicGraph; claim: ClaimWithEvidenc
       </div>
       <p className="claim-sentence mt-2">{claim.claimText}</p>
       {claim.evidence.length > 0 ? (
-        <details className="sources mt-2">
-          <summary className="meta hover:text-ink">Sources</summary>
+        <details className="sources mt-1">
+          <summary>Sources</summary>
           <SourceList claim={claim} />
         </details>
       ) : null}
@@ -91,16 +93,18 @@ function SourcedPositions({ claim }: { claim: ClaimWithEvidence }) {
             <ul className="mt-2 space-y-3">
               {group.items.map((item) => (
                 <li key={`${item.source.id}-${item.supportType}`}>
-                  <p className="meta">
+                  <p className="font-mono text-[12px]/[16px] text-ink">
                     <a
-                      className="text-ink underline decoration-rule underline-offset-2 hover:decoration-ink"
+                      className="underline decoration-rule underline-offset-2 hover:decoration-ink"
                       href={item.source.canonicalUrl}
                       rel="nofollow noopener"
                     >
                       {item.source.publisherDomain}
                     </a>
                   </p>
-                  <p className="mt-1 text-[0.8125rem] leading-5 text-ink-quiet">{item.evidenceExcerpt}</p>
+                  <p className="mt-1 text-[0.8125rem] leading-5 text-ink-quiet">
+                    {shortExcerpt(item.evidenceExcerpt)}
+                  </p>
                 </li>
               ))}
             </ul>
@@ -136,7 +140,7 @@ export function TopicView({
           {graph.topic.name}
         </h1>
         <p className={`max-w-prose text-[0.9375rem] leading-6 ${stub ? "text-ink-quiet" : ""}`}>
-          {graph.topic.description}
+          {displayDek(graph.topic.description)}
         </p>
         <div className="space-y-2">
           <p className="meta">

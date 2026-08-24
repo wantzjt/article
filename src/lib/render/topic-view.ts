@@ -30,6 +30,40 @@ export function oneLine(text: string, max = 160): string {
   return `${compact.slice(0, max - 1).trimEnd()}…`;
 }
 
+export function splitSentences(text: string): string[] {
+  const compact = text.replace(/\s+/g, " ").trim();
+  if (!compact) return [];
+  return compact.split(/(?<=[.!?])\s+(?=[A-Z])/).map((part) => part.trim()).filter(Boolean);
+}
+
+/** Topic dek on the page: at most two sentences, short enough for ~390px. */
+export function displayDek(text: string, maxChars = 240): string {
+  const sentences = splitSentences(text).slice(0, 2);
+  if (sentences.length === 0) return "";
+  let out = sentences[0];
+  if (sentences[1] && `${out} ${sentences[1]}`.length <= maxChars) {
+    out = `${out} ${sentences[1]}`;
+  }
+  return out.length <= maxChars ? out : oneLine(out, maxChars);
+}
+
+export function shortExcerpt(text: string, max = 160): string {
+  const first = splitSentences(text)[0] ?? text;
+  return oneLine(first, max);
+}
+
+/** Explore “what moved”: a material-change line, never the topic dek. */
+export function changeLine(input: {
+  briefHeadline?: string | null;
+  changeSummary?: string | null;
+}): string {
+  const headline = input.briefHeadline?.replace(/\s+/g, " ").trim();
+  if (headline) return oneLine(splitSentences(headline)[0] ?? headline, 140);
+  const summary = input.changeSummary?.replace(/\s+/g, " ").trim();
+  if (summary) return oneLine(splitSentences(summary)[0] ?? summary, 140);
+  return "Material change recorded.";
+}
+
 export function evidenceLabel(graph: TopicGraph, claimId: string): string {
   const claim = graph.claims.find((row) => row.id === claimId);
   if (!claim) return "0 independent · 0 primary";

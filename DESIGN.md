@@ -16,10 +16,9 @@ Status (quiet, semantic — never a confidence %):
 
 | Status | Token |
 |---|---|
-| supported | `--status-supported` `oklch(0.40 0.05 155)` |
-| disputed | `--status-disputed` `oklch(0.48 0.09 28)` |
-| single-source | `--ink-quiet` |
-| stub / provisional | `--ink-quiet` at lower contrast |
+| supported | `--status-supported` `oklch(0.34 0.07 155)` |
+| disputed | `--status-disputed` `oklch(0.40 0.12 28)` |
+| single-source / stub / strong | `--ink` (12px mono — not quiet gray) |
 
 Type: Source Serif 4 for topic names and claim sentences. Geist for chrome. Geist Mono for timestamps, counts, chips.
 
@@ -31,10 +30,12 @@ Spacing: 16px page gutter; 24–40px between sections; 12px inside a claim row. 
 
 - Masthead: wordmark · tagline (hidden on 390px) · Methodology · Corrections
 - Status chip
-- Claim row + expandable sources (`N independent · M primary`)
+- Claim row + expandable sources (`N independent · M primary`); Sources control ≥44px
 - Disagreement: stacked sourced positions, not a blended card
 - Timeline: date (mono) + one-line change
-- Play: secondary, under meta, no autoplay, `glm-5-3` only
+- Play: secondary, under meta, ≥44px hit, no autoplay, `glm-5-3` only
+- Topic dek: ≤2 short sentences on the page
+- Explore What Moved: latest brief headline or first sentence of material change — never the topic dek
 
 ## Do not
 

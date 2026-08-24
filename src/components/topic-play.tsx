@@ -38,17 +38,17 @@ export function TopicPlay({ slug, minutes }: { slug: string; minutes: number }) 
   const label = loading ? "Loading" : playing ? "Pause" : `Play · ~${minutes} min`;
 
   return (
-    <div className="flex flex-wrap items-baseline gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       <button
         type="button"
         onClick={onPlay}
         disabled={loading}
         aria-pressed={playing}
-        className="meta border-b border-rule pb-0.5 text-ink-quiet hover:text-ink disabled:opacity-50"
+        className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink hover:text-ink-quiet disabled:opacity-50"
       >
         {label}
       </button>
-      {error ? <span className="meta">{error}</span> : null}
+      {error ? <span className="font-mono text-[12px]/[16px] text-ink-quiet">{error}</span> : null}
       <audio
         ref={audioRef}
         preload="none"

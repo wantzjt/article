@@ -62,8 +62,8 @@
   --ink-quiet: oklch(0.48 0.015 55);
   --rule: oklch(0.88 0.012 85);
   --signal: oklch(0.52 0.14 38);
-  --status-supported: oklch(0.40 0.05 155);
-  --status-disputed: oklch(0.48 0.09 28);
+  --status-supported: oklch(0.34 0.07 155);
+  --status-disputed: oklch(0.40 0.12 28);
   --background: var(--paper);
   --foreground: var(--ink);
   --card: var(--paper);
@@ -186,17 +186,29 @@
     color: var(--ink-quiet);
   }
   details.sources > summary {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 0.4rem;
     cursor: pointer;
     list-style: none;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    color: var(--ink);
+    border-bottom: 1px solid var(--rule);
   }
   details.sources > summary::-webkit-details-marker {
     display: none;
   }
   details.sources > summary::after {
-    content: " +";
-    color: var(--ink-quiet);
+    content: "+";
+    color: var(--ink);
+  }
+  details.sources[open] > summary {
+    color: var(--ink);
   }
   details.sources[open] > summary::after {
-    content: " −";
+    content: "−";
   }
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { brand } from "@/lib/brand";
 import { StatusChip } from "@/components/status-chip";
-import { formatTime, oneLine } from "@/lib/render/topic-view";
+import { changeLine, formatTime } from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,17 @@ export default async function HomePage() {
       latestByTopic.set(version.topicId, {
         createdAt: version.createdAt,
         changeSummary: version.changeSummary,
+      });
+    }
+  }
+  const latestBriefByTopic = new Map<string, { publishedAt: string; headline: string }>();
+  for (const brief of graph.briefs) {
+    if (brief.status !== "published") continue;
+    const prev = latestBriefByTopic.get(brief.topicId);
+    if (!prev || brief.publishedAt > prev.publishedAt) {
+      latestBriefByTopic.set(brief.topicId, {
+        publishedAt: brief.publishedAt,
+        headline: brief.headline,
       });
     }
   }
@@ -43,8 +54,10 @@ export default async function HomePage() {
         ) : (
           <ul className="mt-4">
             {moved.map((topic) => {
-              const change =
-                latestByTopic.get(topic.id)?.changeSummary ?? topic.description;
+              const change = changeLine({
+                briefHeadline: latestBriefByTopic.get(topic.id)?.headline,
+                changeSummary: latestByTopic.get(topic.id)?.changeSummary,
+              });
               return (
                 <li key={topic.id} className="border-t border-rule py-3 first:border-t-0">
                   <div className="flex items-baseline justify-between gap-3">
@@ -58,7 +71,7 @@ export default async function HomePage() {
                   </div>
                   <p className="mt-1 flex gap-2 text-[0.9375rem] leading-6 text-ink">
                     <span className="mt-[0.55rem] size-1.5 shrink-0 rounded-full bg-signal" aria-hidden />
-                    <span>{oneLine(change)}</span>
+                    <span>{change}</span>
                   </p>
                   <p className="meta mt-1">Verified {formatTime(topic.lastVerifiedAt)}</p>
                 </li>

@@ -18,10 +18,10 @@ export function StatusChip({ status }: { status: ClaimStatus | TopicStatus }) {
       ? "text-status-supported"
       : status === "disputed"
         ? "text-status-disputed"
-        : "text-ink-quiet";
+        : "text-ink";
 
   return (
-    <span className={`font-mono text-[11px]/[14px] tracking-wide ${tone}`}>
+    <span className={`font-mono text-[12px]/[16px] tracking-wide ${tone}`}>
       {LABELS[status] ?? status}
     </span>
   );
