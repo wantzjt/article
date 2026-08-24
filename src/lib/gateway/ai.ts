@@ -11,6 +11,7 @@ import {
 import type { ZodType } from "zod";
 import { PRIMARY_MODEL } from "@/lib/env";
 import { estimateCostUsd } from "@/lib/compiler/spend";
+import { isAbortError } from "@/lib/compiler/timeout";
 import type { PipelineStage } from "@/lib/compiler/types";
 
 const structuredModel = wrapLanguageModel({
@@ -56,10 +57,12 @@ export async function generateStructured<T>(input: {
   system: string;
   prompt: string;
   schema: ZodType<T>;
+  abortSignal?: AbortSignal;
 }): Promise<{ object: T; meta: GatewayCallMeta }> {
   let submitted: T | null = null;
   const result = await generateText({
     model: gateway(PRIMARY_MODEL),
+    abortSignal: input.abortSignal,
     tools: {
       submit_result: tool({
         description: "Submit the structured result. Do not write prose; call this tool.",
@@ -89,9 +92,15 @@ export async function generateStructured<T>(input: {
   }
 
   if (submitted == null) {
+    if (input.abortSignal?.aborted) {
+      throw input.abortSignal.reason instanceof Error
+        ? input.abortSignal.reason
+        : new Error(`aborted at ${input.stage}`);
+    }
     try {
       const objectResult = await generateText({
         model: structuredModel,
+        abortSignal: input.abortSignal,
         output: Output.object({ schema: input.schema }),
         system: `${input.system}\nReturn only JSON matching the schema.`,
         prompt: input.prompt,
@@ -114,6 +123,7 @@ export async function generateStructured<T>(input: {
         },
       };
     } catch (error) {
+      if (isAbortError(error) || input.abortSignal?.aborted) throw error;
       throw structuredFailure(input.stage, error);
     }
   }

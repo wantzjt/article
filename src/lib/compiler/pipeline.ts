@@ -14,6 +14,13 @@ import { detectMaterialChange } from "./versions";
 import { assertUnderModelCap } from "./spend";
 import { logPipeline } from "./logger";
 import {
+  CLUSTER_STAGE_TIMEOUT_MS,
+  EXTRACT_STAGE_TIMEOUT_MS,
+  StageTimeoutError,
+  VERIFY_STAGE_TIMEOUT_MS,
+  runWithStageTimeout,
+} from "./timeout";
+import {
   clusterOutputSchema,
   contradictionOutputSchema,
   extractOutputSchema,
@@ -70,7 +77,12 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     const cachedSources = (await store.listSources()).filter((source) => {
       const via = source.metadata?.via;
       const retrieved = Date.parse(source.retrievedAt);
-      return via === "ai-gateway:exaSearch" && Number.isFinite(retrieved) && retrieved >= cutoff;
+      return (
+        via === "ai-gateway:exaSearch" &&
+        Number.isFinite(retrieved) &&
+        retrieved >= cutoff &&
+        entity.officialDomains.includes(source.publisherDomain)
+      );
     });
 
     const persistedSources: SourceRecord[] = [];
@@ -202,13 +214,27 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
 
     stage = "extract";
     assertUnderModelCap(await store.modelSpendTodayUsd());
-    const extracted = await generateStructured({
-      stage: "extract",
+    const extractStarted = Date.now();
+    const extracted = await runWithStageTimeout("extract", EXTRACT_STAGE_TIMEOUT_MS, (signal) =>
+      generateStructured({
+        stage: "extract",
+        topicId: topic.id,
+        schema: extractOutputSchema,
+        abortSignal: signal,
+        system:
+          "Extract atomic factual claims ONLY from the provided excerpts. Every claim must include a SOURCE_ID from the list. If the excerpt does not contain the fact, omit it. No invented numbers, dates, or quotations.",
+        prompt: `Topic: ${entity.name}\n\n${evidenceBlock}`,
+      }),
+    );
+    logPipeline({
+      runId,
       topicId: topic.id,
-      schema: extractOutputSchema,
-      system:
-        "Extract atomic factual claims ONLY from the provided excerpts. Every claim must include a SOURCE_ID from the list. If the excerpt does not contain the fact, omit it. No invented numbers, dates, or quotations.",
-      prompt: `Topic: ${entity.name}\n\n${evidenceBlock}`,
+      stage: "extract",
+      durationMs: Date.now() - extractStarted,
+      claimsProposed: extracted.object.claims.length,
+      model: PRIMARY_MODEL,
+      costUsd: extracted.meta.costUsd,
+      message: "extract_ok",
     });
     await store.recordSpend({
       stage: "extract",
@@ -238,13 +264,16 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
 
     if (candidates.length > 1) {
       assertUnderModelCap(await store.modelSpendTodayUsd());
-      const clustered = await generateStructured({
-        stage: "cluster",
-        topicId: topic.id,
-        schema: clusterOutputSchema,
-        system: "Group semantically equivalent claims. Do not invent claims.",
-        prompt: candidates.map((claim, index) => `${index}: ${claim.claimText}`).join("\n"),
-      });
+      const clustered = await runWithStageTimeout("cluster", CLUSTER_STAGE_TIMEOUT_MS, (signal) =>
+        generateStructured({
+          stage: "cluster",
+          topicId: topic.id,
+          schema: clusterOutputSchema,
+          abortSignal: signal,
+          system: "Group semantically equivalent claims. Do not invent claims.",
+          prompt: candidates.map((claim, index) => `${index}: ${claim.claimText}`).join("\n"),
+        }),
+      );
       await store.recordSpend({
         stage: "cluster",
         topicId: topic.id,
@@ -270,8 +299,10 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     const links: ClaimSourceRecord[] = [];
     let rejected = 0;
     stage = "verify";
-
+    const verifyStarted = Date.now();
+    await runWithStageTimeout("verify", VERIFY_STAGE_TIMEOUT_MS, async (signal) => {
     for (const candidate of candidates) {
+      if (signal.aborted) throw signal.reason ?? new Error("aborted");
       const gated = gateCandidateClaim(candidate);
       if (!gated.ok) {
         rejected += 1;
@@ -292,6 +323,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         stage: "verify",
         topicId: topic.id,
         schema: verifyOutputSchema,
+        abortSignal: signal,
         system:
           "You verify whether the EXCERPT supports the CLAIM. Use only the excerpt. If the excerpt is insufficient, verdict is not_supported.",
         prompt: `CLAIM: ${candidate.claimText}\nEXCERPT: ${candidate.evidenceExcerpt}\nURL: ${source.canonicalUrl}`,
@@ -345,6 +377,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         stage: "verify",
         topicId: topic.id,
         schema: contradictionOutputSchema,
+        abortSignal: signal,
         system:
           "Identify pairs of claims that cannot both be true. Do not average them. If unsure, return no pair.",
         prompt: accepted.map((claim, index) => `${index}: ${claim.claimText}`).join("\n"),
@@ -381,6 +414,17 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         }
       }
     }
+    });
+    logPipeline({
+      runId,
+      topicId: topic.id,
+      stage: "verify",
+      durationMs: Date.now() - verifyStarted,
+      claimsAccepted: accepted.length,
+      claimsRejected: rejected,
+      model: PRIMARY_MODEL,
+      message: "verify_ok",
+    });
 
     const persistedClaims: ClaimRecord[] = [];
     for (const claim of accepted) {
@@ -495,15 +539,41 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     });
     return { topicId: topic.id, runId };
   } catch (error) {
+    const timeout = error instanceof StageTimeoutError;
+    const failedStage = timeout ? error.stage : stage;
+    logPipeline({
+      runId,
+      topicId: topic.id,
+      stage: failedStage,
+      durationMs: timeout ? error.durationMs : Date.now() - started,
+      model: PRIMARY_MODEL,
+      message: timeout ? "timeout" : "failed",
+    });
+    if ((existing?.topic.status ?? "stub") !== "strong") {
+      await store.upsertTopic({
+        ...topic,
+        status: "stub",
+      });
+    }
     await store.saveRun({
       id: runId,
       topicId: topic.id,
       status: "failed",
       stages: {
-        discover: stage === "discover" ? "failed" : "done",
-        extract: stage === "extract" ? "failed" : stage === "discover" ? "pending" : "done",
-        verify: stage === "verify" ? "failed" : "pending",
-        render: stage === "render" ? "failed" : "pending",
+        discover: failedStage === "discover" ? "failed" : "done",
+        extract:
+          failedStage === "extract" || failedStage === "cluster"
+            ? "failed"
+            : failedStage === "discover"
+              ? "pending"
+              : "done",
+        verify:
+          failedStage === "verify"
+            ? "failed"
+            : failedStage === "discover" || failedStage === "extract" || failedStage === "cluster"
+              ? "pending"
+              : "done",
+        render: failedStage === "render" ? "failed" : "pending",
       },
       error: error instanceof Error ? error.message : "unknown",
       createdAt: new Date().toISOString(),
