@@ -70,46 +70,35 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
 
     const queries = [
       `${entity.name} official announcement`,
+      `${entity.name} ${entity.officialDomains[0] ?? ""}`.trim(),
       `${entity.name} pricing availability`,
       `${entity.name} benchmark evaluation dispute`,
+      `${entity.name} latest news`,
     ];
-    const cutoff = Date.now() - 48 * 3600 * 1000;
-    const cachedSources = (await store.listSources()).filter((source) => {
-      const via = source.metadata?.via;
-      const retrieved = Date.parse(source.retrievedAt);
-      return (
-        via === "ai-gateway:exaSearch" &&
-        Number.isFinite(retrieved) &&
-        retrieved >= cutoff &&
-        entity.officialDomains.includes(source.publisherDomain)
-      );
-    });
 
     const persistedSources: SourceRecord[] = [];
-    if (cachedSources.length >= 8) {
-      persistedSources.push(...cachedSources);
-    } else {
-      const { result, meta: discoverMeta } = await generateWithExaSearch({
-        stage: "discover",
-        topicId: topic.id,
-        exa: exaSearchTool({
-          category: entity.entityType === "research" ? "research paper" : "news",
-          startPublishedDate: daysAgoIso(21),
-        }),
-        system:
-          "You retrieve evidence. Call exa_search for official, independent, and recent reporting. Do not write an article. Do not invent URLs. After searching, list only the queries you ran.",
-        prompt: `Topic: ${entity.name} (${entity.slug})\nOfficial domains: ${entity.officialDomains.join(", ")}\nRun searches:\n- ${queries.join("\n- ")}`,
-      });
-      await store.recordSpend({
-        stage: "discover",
-        topicId: topic.id,
-        model: PRIMARY_MODEL,
-        costUsd: discoverMeta.costUsd,
-      });
-      const discovered = collectExaSources(result.toolResults ?? [], queries);
-      for (const hit of discovered) {
+    const { result, meta: discoverMeta } = await generateWithExaSearch({
+      stage: "discover",
+      topicId: topic.id,
+      maxSteps: 10,
+      exa: exaSearchTool({
+        category: entity.entityType === "research" ? "research paper" : "news",
+        startPublishedDate: daysAgoIso(180),
+      }),
+      system:
+        "You retrieve evidence. Call exa_search for official, independent, and recent reporting. Do not write an article. Do not invent URLs. After searching, list only the queries you ran.",
+      prompt: `Topic: ${entity.name} (${entity.slug})\nOfficial domains: ${entity.officialDomains.join(", ")}\nRun searches:\n- ${queries.join("\n- ")}`,
+    });
+    await store.recordSpend({
+      stage: "discover",
+      topicId: topic.id,
+      model: PRIMARY_MODEL,
+      costUsd: discoverMeta.costUsd,
+    });
+    const discovered = collectExaSources(result.toolResults ?? [], queries);
+    for (const hit of discovered) {
       const canonicalUrl = canonicalizeUrl(hit.canonicalUrl);
-      const excerpt = hit.highlights.join(" ").slice(0, 800);
+      const excerpt = (hit.highlights.join(" ") || "").slice(0, 800);
       const hash = contentHash([canonicalUrl, hit.title, excerpt]);
       const prior = await store.findSourceByUrl(canonicalUrl);
       if (prior && prior.contentHash === hash) {
@@ -136,7 +125,6 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         metadata: { query: hit.query, via: "ai-gateway:exaSearch" },
       });
       persistedSources.push(source);
-      }
     }
 
     const seenSourceIds = new Set(persistedSources.map((source) => source.id));

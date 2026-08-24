@@ -33,8 +33,8 @@ export function exaSearchTool(options?: {
     includeDomains: options?.includeDomains,
     startPublishedDate: options?.startPublishedDate,
     contents: {
-      highlights: { maxCharacters: 400 },
-      text: false,
+      highlights: { maxCharacters: 800 },
+      text: { maxCharacters: 2000 },
     },
   });
 }
@@ -57,7 +57,8 @@ function isExaResponse(output: unknown): output is ExaToolOutput {
 function fromResult(result: ExaHit, query: string): DiscoveredSource | null {
   try {
     const canonicalUrl = canonicalizeUrl(result.url);
-    const excerpt = (result.highlights ?? []).join(" ").trim() || (result.text ?? "").slice(0, 400);
+    const excerpt =
+      (result.highlights ?? []).join(" ").trim() || (result.text ?? "").slice(0, 2000);
     return {
       url: result.url,
       canonicalUrl,

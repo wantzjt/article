@@ -151,7 +151,7 @@ export async function generateWithExaSearch(input: {
   const result = await generateText({
     model: gateway(PRIMARY_MODEL),
     tools: { exa_search: input.exa },
-    stopWhen: stepCountIs(input.maxSteps ?? 6),
+    stopWhen: stepCountIs(input.maxSteps ?? 10),
     system: input.system,
     prompt: input.prompt,
     providerOptions: {

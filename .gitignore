@@ -44,3 +44,4 @@ next-env.d.ts
 # local graph overlay (fixture lives in src/lib/fixture)
 /data/graph.json
 /data/audio/
+/data/ocean-progress.json
