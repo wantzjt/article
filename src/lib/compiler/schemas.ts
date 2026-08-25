@@ -10,6 +10,9 @@ export const extractOutputSchema = z.object({
         dates: z.array(z.string()).optional().default([]),
         numbers: z.array(z.string()).optional().default([]),
         entities: z.array(z.string()).optional().default([]),
+        finance_kind: z
+          .enum(["raised_amount", "lead_investor", "round_stage", "filing_type", "reported_valuation"])
+          .optional(),
       }),
     )
     .max(24),

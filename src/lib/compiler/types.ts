@@ -4,8 +4,20 @@ export const ENTITY_TYPES = [
   "infra",
   "research",
   "policy",
+  "company",
+  "investor",
+  "round_event",
 ] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
+
+export const FINANCE_CLAIM_KINDS = [
+  "raised_amount",
+  "lead_investor",
+  "round_stage",
+  "filing_type",
+  "reported_valuation",
+] as const;
+export type FinanceClaimKind = (typeof FINANCE_CLAIM_KINDS)[number];
 
 export const TOPIC_STATUSES = ["stub", "provisional", "strong"] as const;
 export type TopicStatus = (typeof TOPIC_STATUSES)[number];
@@ -136,4 +148,5 @@ export type CandidateClaim = {
   dates: string[];
   numbers: string[];
   entities: string[];
+  financeKind?: FinanceClaimKind | null;
 };

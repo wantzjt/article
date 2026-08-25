@@ -1,4 +1,5 @@
 import type { SeedEntity } from "@/lib/compiler/types";
+import { FINANCE_SEED_ENTITIES } from "./finance";
 
 export const SEED_ENTITIES: SeedEntity[] = [
   { slug: "openai", name: "OpenAI", entityType: "lab", description: "San Francisco AI lab behind GPT, o-series, and ChatGPT.", aliases: ["OAI"], officialDomains: ["openai.com"] },
@@ -63,3 +64,7 @@ export const SEED_ENTITIES: SeedEntity[] = [
 
 export const LAUNCH_DEMO_SLUG =
   SEED_ENTITIES.find((entity) => entity.launchDemo)?.slug ?? "glm-5-3";
+
+export function getEntityBySlug(slug: string): SeedEntity | undefined {
+  return SEED_ENTITIES.find((row) => row.slug === slug) ?? FINANCE_SEED_ENTITIES.find((row) => row.slug === slug);
+}

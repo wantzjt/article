@@ -1,0 +1,180 @@
+{
+  "round": "~$5M lead",
+  "company": "TARXANE, INC.",
+  "product": "TARX local-first governed agent OS; Article.fm is public evidence-graph proof",
+  "researchedAt": "2026-08-25",
+  "emailPolicy": "unknown unless published on current official firm domain; never invent; never trust spreadsheet emails",
+  "dirtyData": [
+    {
+      "pmList": "Quiet / Astasia Myers",
+      "actual": "Astasia Myers is Senior Venture Partner at Felicis; former Quiet founding enterprise partner",
+      "sources": [
+        "https://www.felicis.com/team/astasia-myers",
+        "https://www.felicis.com/insight/astasia-myers"
+      ]
+    },
+    {
+      "pmList": "KP Bucky Moore",
+      "actual": "Bucky Moore is Partner at Lightspeed; left Kleiner Perkins in 2025",
+      "sources": ["https://lsvp.com/team-member/bucky-moore/"]
+    }
+  ],
+  "top15": [
+    {
+      "rank": 1,
+      "firm": "Root Ventures",
+      "partner": "Avidan Ross",
+      "stageCheckFit": "Seed lead; official typical initial $3-5M",
+      "tarxFit": "Engineer-led deep tech; agent-graph adjacent (Lithos/Fabro, Zed)",
+      "email": "unknown",
+      "sources": ["https://root.vc/"]
+    },
+    {
+      "rank": 2,
+      "firm": "Engineering Capital",
+      "partner": "Ashmeet Sidana",
+      "stageCheckFit": "Leads seed for technical-insight software; size unpublished",
+      "tarxFit": "Infra software seed lead before brand VCs",
+      "email": "unknown",
+      "sources": ["https://www.engineeringcapital.com/", "https://www.engineeringcapital.com/team"]
+    },
+    {
+      "rank": 3,
+      "firm": "Amplify Partners",
+      "partner": "Lenny Pruss; Sarah Catanzaro (agent/memory)",
+      "stageCheckFit": "First institutional check for technical founders",
+      "tarxFit": "AI tools and infrastructure (Temporal, Modal, agent harness writing)",
+      "email": "unknown",
+      "sources": ["https://www.amplifypartners.com/"]
+    },
+    {
+      "rank": 4,
+      "firm": "Uncork Capital",
+      "partner": "Andy McLoughlin",
+      "stageCheckFit": "Seed lead about $3-5M; Fund VIII $225M",
+      "tarxFit": "Enterprise/devtools (LaunchDarkly, Tailscale, Coder)",
+      "email": "unknown",
+      "sources": [
+        "https://uncorkcapital.com/approach",
+        "https://uncorkcapital.com/team/andy-mcloughlin"
+      ]
+    },
+    {
+      "rank": 5,
+      "firm": "Lightspeed Venture Partners",
+      "partner": "Bucky Moore",
+      "mappedFrom": "KP Bucky Moore",
+      "stageCheckFit": "Earliest-stage AI/infra/cyber at a multi-stage firm; confirm seed lead vs A",
+      "tarxFit": "AI infrastructure primitives",
+      "email": "bucky@lsvp.com",
+      "emailSource": "https://lsvp.com/team-member/bucky-moore/",
+      "sources": ["https://lsvp.com/team-member/bucky-moore/"]
+    },
+    {
+      "rank": 6,
+      "firm": "Felicis",
+      "partner": "Astasia Myers",
+      "mappedFrom": "Quiet / Astasia Myers",
+      "stageCheckFit": "Pre-seed to Series A AI/infra/devtools",
+      "tarxFit": "Developer tools, infra, agentic AI (LangChain, Browser Use, model routing)",
+      "email": "unknown",
+      "sources": [
+        "https://www.felicis.com/team/astasia-myers",
+        "https://www.felicis.com/insight/astasia-myers"
+      ]
+    },
+    {
+      "rank": 7,
+      "firm": "Greylock",
+      "partner": "Asheem Chandna",
+      "stageCheckFit": "Seed through later; $5M lead possible if treated as concept-stage infra",
+      "tarxFit": "Enterprise, cybersecurity, infrastructure software",
+      "email": "unknown",
+      "sources": ["https://greylock.com/team/asheem-chandna/"]
+    },
+    {
+      "rank": 8,
+      "firm": "Bessemer Venture Partners",
+      "partner": "Byron Deeter",
+      "stageCheckFit": "Usually A+ cloud/AI; weak as $5M lead",
+      "tarxFit": "Cloud to AI infra; Anthropic; agent-native infra (Dome)",
+      "email": "unknown",
+      "sources": ["https://www.bvp.com/team/byron-deeter"]
+    },
+    {
+      "rank": 9,
+      "firm": "Andreessen Horowitz",
+      "partner": "David Ulevitch",
+      "stageCheckFit": "Unlikely $5M lead; American Dynamism + enterprise",
+      "tarxFit": "Sovereign/operational infrastructure framing, not chatbot",
+      "email": "unknown",
+      "sources": ["https://a16z.com/author/david-ulevitch/"]
+    },
+    {
+      "rank": 10,
+      "firm": "Sequoia Capital",
+      "partner": "Sonya Huang",
+      "stageCheckFit": "AI practice; checks typically above $5M lead",
+      "tarxFit": "Agentic AI stack (LangChain, Zed, Fireworks)",
+      "email": "unknown",
+      "sources": ["https://sequoiacap.com/people/sonya-huang"]
+    },
+    {
+      "rank": 11,
+      "firm": "Floodgate",
+      "partner": "Mike Maples Jr.",
+      "stageCheckFit": "Pre-seed/seed; $5M lead at or above typical size",
+      "tarxFit": "Non-consensus pattern-breaker vs cloud chatbot default",
+      "email": "unknown",
+      "sources": ["https://www.floodgate.com/"]
+    },
+    {
+      "rank": 12,
+      "firm": "Afore Capital",
+      "partner": "Gaurav Jain; Anamitra Banerji",
+      "stageCheckFit": "Official $500k-$2M+ pre-seed; cannot lead $5M",
+      "tarxFit": "Day-0 product; overlay only",
+      "email": "unknown",
+      "sources": ["https://www.afore.vc/"]
+    },
+    {
+      "rank": 13,
+      "firm": "SignalFire",
+      "partner": "Enterprise AI practice (partner-of-record not named on homepage)",
+      "stageCheckFit": "Multi-stage; $5M lead possible after partner ID",
+      "tarxFit": "Enterprise AI; agent trajectory governance",
+      "email": "unknown",
+      "sources": ["https://www.signalfire.com/"]
+    },
+    {
+      "rank": 14,
+      "firm": "GV",
+      "partner": "AI infra / devtools practice (unnamed on landing page)",
+      "stageCheckFit": "Multi-stage; not a published $5M lead motion",
+      "tarxFit": "Dev tools and security (Vercel); AI infra",
+      "email": "unknown",
+      "sources": ["https://www.gv.com/"]
+    },
+    {
+      "rank": 15,
+      "firm": "Quiet Capital",
+      "partner": "unknown (not Astasia Myers)",
+      "stageCheckFit": "Active at quiet.com; current book includes later-stage Access; not this seed lead",
+      "tarxFit": "Historical enterprise seed was Astasia's, now at Felicis",
+      "email": "unknown",
+      "sources": ["https://quiet.com/"]
+    }
+  ],
+  "sequenceOf10": [
+    { "order": 1, "target": "Root / Avidan Ross", "rationale": "Published $3-5M seed lead; agent-graph adjacent portfolio" },
+    { "order": 2, "target": "Engineering Capital / Ashmeet Sidana", "rationale": "Leads seed on technical-insight infra before brand VCs" },
+    { "order": 3, "target": "Amplify / Lenny Pruss", "rationale": "First-check firm for agent and infra technical founders" },
+    { "order": 4, "target": "Uncork / Andy McLoughlin", "rationale": "Official $3-5M seed lead in enterprise/devtools" },
+    { "order": 5, "target": "Lightspeed / Bucky Moore", "rationale": "Verified firm-site email; early AI/infra/cyber" },
+    { "order": 6, "target": "Felicis / Astasia Myers", "rationale": "Mapped Quiet relationship; AI/devtools/infra from day zero" },
+    { "order": 7, "target": "Greylock / Asheem Chandna", "rationale": "Concept-stage infra/security; ask lead, accept participate" },
+    { "order": 8, "target": "Floodgate / Mike Maples Jr.", "rationale": "Non-consensus seed; likely co-lead not full $5M" },
+    { "order": 9, "target": "SignalFire / Enterprise AI", "rationale": "Agent-trace governance thesis; identify partner first" },
+    { "order": 10, "target": "Bessemer / Byron Deeter", "rationale": "Cloud/AI follow after a seed lead exists" }
+  ]
+}

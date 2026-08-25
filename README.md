@@ -31,6 +31,18 @@ Live ingest (Gateway OIDC required):
 npm run ingest -- glm-5-3
 ```
 
+Finance arm (off the night queue; 21 bounded seeds in `src/lib/seed/finance.ts`):
+
+```bash
+# Discover-only; do not persist while ocean:night holds the graph lock
+npm run finance:discover -- --dry-run andreessen-horowitz
+# Persist sources after the night runner stops; compile is optional and spends model budget
+npm run finance:discover -- andreessen-horowitz
+npm run finance:discover -- --compile openai-funding
+```
+
+Uses `gateway.tools.exaSearch()` only. Drops Crunchbase/PitchBook. Valuation claims never graduate to consensus-supported. TARX fundraising list: `artifacts/tarx-lead-investors.md`.
+
 Night runner (bounded overnight compile — do not use `npm run ocean` for the demo window):
 
 ```bash

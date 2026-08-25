@@ -2,12 +2,21 @@ import { randomUUID } from "node:crypto";
 import { PRIMARY_MODEL } from "@/lib/env";
 import { generateStructured, generateWithExaSearch } from "@/lib/gateway/ai";
 import { collectExaSources, exaSearchTool } from "@/lib/gateway/exa";
-import { SEED_ENTITIES } from "@/lib/seed/entities";
+import { getEntityBySlug } from "@/lib/seed/entities";
 import { classifySource } from "./primary";
 import { canonicalizeUrl } from "./urls";
 import { contentHash } from "./hash";
 import { normalizeClaimText } from "./normalize";
-import { mergeDuplicateClaims, statusFromEvidence, findMatchingClaim } from "./claims";
+import { mergeDuplicateClaims, findMatchingClaim } from "./claims";
+import {
+  FINANCE_FILING_DOMAINS,
+  FINANCE_WIRE_DOMAINS,
+  financeDiscoverQueries,
+  isFinanceClaimKind,
+  isFinanceEntityType,
+  isForbiddenFinanceDomain,
+  statusFromFinanceEvidence,
+} from "./finance";
 import { dropClaimsWithoutKnownSource, excerptSupportsClaim, gateCandidateClaim } from "./gate";
 import { failClosedStatus, graduateTopic, shouldPublishBrief, STRONG_MIN_CLAIMS } from "./publication";
 import { acceptVerifyObject, shouldRunExtract, statusAfterRenderTimeout } from "./fail-closed";
@@ -42,7 +51,7 @@ function daysAgoIso(days: number): string {
 }
 
 export async function ingestTopic(slug: string): Promise<{ topicId: string; runId: string }> {
-  const entity = SEED_ENTITIES.find((row) => row.slug === slug);
+  const entity = getEntityBySlug(slug);
   if (!entity) throw new Error(`Unknown seed entity: ${slug}`);
 
   const runId = randomUUID();
@@ -75,13 +84,16 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
   try {
     assertUnderModelCap(await store.modelSpendTodayUsd());
 
-    const queries = [
-      `${entity.name} official announcement`,
-      `${entity.name} ${entity.officialDomains[0] ?? ""}`.trim(),
-      `${entity.name} pricing availability`,
-      `${entity.name} benchmark evaluation dispute`,
-      `${entity.name} latest news`,
-    ];
+    const finance = isFinanceEntityType(entity.entityType);
+    const queries = finance
+      ? financeDiscoverQueries(entity.name, entity.officialDomains[0])
+      : [
+          `${entity.name} official announcement`,
+          `${entity.name} ${entity.officialDomains[0] ?? ""}`.trim(),
+          `${entity.name} pricing availability`,
+          `${entity.name} benchmark evaluation dispute`,
+          `${entity.name} latest news`,
+        ];
 
     const persistedSources: SourceRecord[] = [];
     const existingClaimsAtStart = await store.listClaimsForTopic(topic.id);
@@ -110,11 +122,15 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       topicId: topic.id,
       maxSteps: 10,
       exa: exaSearchTool({
-        category: entity.entityType === "research" ? "research paper" : "news",
-        startPublishedDate: daysAgoIso(180),
+        category: finance ? "news" : entity.entityType === "research" ? "research paper" : "news",
+        includeDomains: finance
+          ? [...new Set([...entity.officialDomains, ...FINANCE_FILING_DOMAINS, ...FINANCE_WIRE_DOMAINS])]
+          : undefined,
+        startPublishedDate: daysAgoIso(finance ? 400 : 180),
       }),
-      system:
-        "You retrieve evidence. Call exa_search for official, independent, and recent reporting. Do not write an article. Do not invent URLs. After searching, list only the queries you ran.",
+      system: finance
+        ? "You retrieve primary evidence for capital events. You MUST call exa_search at least twice. Prefer official IR/press, reputable wires, and SEC filings. Do not invent URLs. Do not use Crunchbase or PitchBook as a source of record."
+        : "You retrieve evidence. Call exa_search for official, independent, and recent reporting. Do not write an article. Do not invent URLs. After searching, list only the queries you ran.",
       prompt: `Topic: ${entity.name} (${entity.slug})\nOfficial domains: ${entity.officialDomains.join(", ")}\nRun searches:\n- ${queries.join("\n- ")}`,
     });
     await store.recordSpend({
@@ -123,7 +139,9 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       model: discoverMeta.model,
       costUsd: discoverMeta.costUsd,
     });
-    const discovered = collectExaSources(result.toolResults ?? [], queries);
+    const discovered = collectExaSources(result.toolResults ?? [], queries).filter(
+      (hit) => !finance || !isForbiddenFinanceDomain(hit.publisherDomain),
+    );
     const pendingSources: SourceRecord[] = [];
     for (const hit of discovered) {
       const canonicalUrl = canonicalizeUrl(hit.canonicalUrl);
@@ -239,7 +257,10 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
             schema: extractOutputSchema,
             abortSignal: signal,
             system:
-              "Extract atomic factual claims ONLY from the provided excerpts. Every claim must include a SOURCE_ID from the list. If the excerpt does not contain the fact, omit it. No invented numbers, dates, or quotations.",
+              "Extract atomic factual claims ONLY from the provided excerpts. Every claim must include a SOURCE_ID from the list. If the excerpt does not contain the fact, omit it. No invented numbers, dates, or quotations." +
+              (finance
+                ? " When the excerpt states a capital fact, set finance_kind to one of: raised_amount, lead_investor, round_stage, filing_type, reported_valuation."
+                : ""),
             prompt: `Topic: ${entity.name}\n\n${chunk
               .map(
                 (source) =>
@@ -283,6 +304,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
               dates: claim.dates ?? [],
               numbers: claim.numbers ?? [],
               entities: claim.entities ?? [],
+              financeKind: isFinanceClaimKind(claim.finance_kind) ? claim.finance_kind : null,
             },
           ];
         });
@@ -330,6 +352,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
 
         const accepted: ClaimRecord[] = [];
         const links: ClaimSourceRecord[] = [];
+        const financeKindByClaimId = new Map<string, CandidateClaim["financeKind"]>();
         for (const verdict of verdicts) {
           if (!verdict.ok) {
             rejected += 1;
@@ -358,6 +381,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
                 updatedAt: now,
               };
           accepted.push(claim);
+          financeKindByClaimId.set(claim.id, verdict.candidate.financeKind ?? null);
           links.push({
             claimId: claim.id,
             sourceId: verdict.source.id,
@@ -374,7 +398,8 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
           );
           const supporting = related.filter((link) => link.supportType === "supports").length;
           const disputing = related.filter((link) => link.supportType === "disputes").length;
-          claim.status = statusFromEvidence({
+          claim.status = statusFromFinanceEvidence({
+            kind: financeKindByClaimId.get(claim.id),
             supportingDomains: Math.min(supporting, domains.size),
             disputingDomains: disputing,
           });
