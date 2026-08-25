@@ -268,6 +268,7 @@ async function main() {
   }
 
   const progress = await loadProgress();
+  progress.stopReason = null;
   let signaled = false;
   const onSignal = async () => {
     if (signaled) return;
