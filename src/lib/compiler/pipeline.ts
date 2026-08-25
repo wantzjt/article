@@ -3,6 +3,7 @@ import { PRIMARY_MODEL } from "@/lib/env";
 import { generateStructured, generateWithExaSearch } from "@/lib/gateway/ai";
 import { collectExaSources, exaSearchTool } from "@/lib/gateway/exa";
 import { getEntityBySlug } from "@/lib/seed/entities";
+import { topicKind } from "./taxonomy";
 import { classifySource } from "./primary";
 import { canonicalizeUrl } from "./urls";
 import { contentHash } from "./hash";
@@ -62,6 +63,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     slug: entity.slug,
     name: entity.name,
     entityType: entity.entityType,
+    kind: topicKind(entity),
     description: existing?.topic.description || entity.description,
     aliases: entity.aliases,
     officialDomains: entity.officialDomains,

@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS topics (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   last_verified_at timestamptz,
-  last_material_change_at timestamptz
+  last_material_change_at timestamptz,
+  kind text
 );
 
 CREATE TABLE IF NOT EXISTS sources (
@@ -98,3 +99,5 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE topics ADD COLUMN IF NOT EXISTS kind text;

@@ -8,6 +8,7 @@ import type {
   TopicVersionRecord,
 } from "@/lib/compiler/types";
 import { emptyGraph, type GraphSnapshot, type PipelineRunRecord, type SpendEvent } from "./graph";
+import { isTopicKind, topicKindFromEntityType } from "@/lib/compiler/taxonomy";
 
 function db() {
   const url = process.env.DATABASE_URL;
@@ -59,8 +60,8 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
     await sql.query(
       `INSERT INTO topics (
          id, slug, name, entity_type, description, aliases, official_domains, status,
-         created_at, updated_at, last_verified_at, last_material_change_at
-       ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$12)
+         created_at, updated_at, last_verified_at, last_material_change_at, kind
+       ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$12,$13)
        ON CONFLICT (id) DO UPDATE SET
          slug = EXCLUDED.slug,
          name = EXCLUDED.name,
@@ -71,7 +72,8 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
          status = EXCLUDED.status,
          updated_at = EXCLUDED.updated_at,
          last_verified_at = EXCLUDED.last_verified_at,
-         last_material_change_at = EXCLUDED.last_material_change_at`,
+         last_material_change_at = EXCLUDED.last_material_change_at,
+         kind = EXCLUDED.kind`,
       [
         topic.id,
         topic.slug,
@@ -85,6 +87,7 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
         topic.updatedAt,
         topic.lastVerifiedAt,
         topic.lastMaterialChangeAt,
+        topic.kind ?? null,
       ],
     );
   }
@@ -271,6 +274,9 @@ function mapTopic(row: Record<string, unknown>): TopicRecord {
     updatedAt: isoRequired(row.updated_at),
     lastVerifiedAt: iso(row.last_verified_at),
     lastMaterialChangeAt: iso(row.last_material_change_at),
+    kind: isTopicKind(row.kind ? String(row.kind) : null)
+      ? (row.kind as TopicRecord["kind"])
+      : topicKindFromEntityType(row.entity_type as TopicRecord["entityType"]),
   };
 }
 

@@ -31,6 +31,8 @@ Live ingest (Gateway OIDC required):
 npm run ingest -- glm-5-3
 ```
 
+Taxonomy: `docs/TAXONOMY.md`. Topic kinds map to Exa categories; sources store `exa_category` / `query_tag` / `topic_id`.
+
 Exa warehouse (discover-only, no compile, no claims):
 
 ```bash

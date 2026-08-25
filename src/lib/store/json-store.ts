@@ -12,6 +12,7 @@ import type {
 import { assembleTopic, emptyGraph, type GraphSnapshot, type PipelineRunRecord, type SpendEvent, type TopicGraph } from "./graph";
 import { glm53Fixture } from "@/lib/fixture/glm-5-3";
 import { SEED_ENTITIES } from "@/lib/seed/entities";
+import { topicKind } from "@/lib/compiler/taxonomy";
 import { loadGraphFromNeon, saveGraphToNeon, upsertSourcesToNeon } from "./neon";
 
 const DATA_PATH = path.join(process.cwd(), "data", "graph.json");
@@ -37,6 +38,7 @@ function mergeSeedStubs(graph: GraphSnapshot): GraphSnapshot {
       slug: entity.slug,
       name: entity.name,
       entityType: entity.entityType,
+      kind: topicKind(entity),
       description: entity.description,
       aliases: entity.aliases,
       officialDomains: entity.officialDomains,

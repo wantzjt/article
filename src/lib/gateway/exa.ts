@@ -1,6 +1,7 @@
 import { gateway } from "ai";
 import { EXA_NUM_RESULTS, EXA_SEARCH_TYPE } from "@/lib/env";
 import { canonicalizeUrl, publisherDomain } from "@/lib/compiler/urls";
+import type { ExaCategory } from "@/lib/compiler/taxonomy";
 
 type ExaHit = {
   title?: string;
@@ -22,7 +23,7 @@ type ExaToolOutput = {
  * Promo: free through 2026-08-31 (see Vercel changelog).
  */
 export function exaSearchTool(options?: {
-  category?: "news" | "research paper" | "company";
+  category?: "news" | "research paper" | "company" | "people" | "personal site" | "financial report";
   includeDomains?: string[];
   startPublishedDate?: string;
 }) {
@@ -48,13 +49,19 @@ export type DiscoveredSource = {
   publishedAt: string | null;
   highlights: string[];
   query: string;
+  exaCategory?: ExaCategory;
+  queryTag?: string;
 };
 
 function isExaResponse(output: unknown): output is ExaToolOutput {
   return Boolean(output && typeof output === "object" && "results" in (output as object));
 }
 
-export function hitsFromExaOutput(output: unknown, query: string): DiscoveredSource[] {
+export function hitsFromExaOutput(
+  output: unknown,
+  query: string,
+  extras?: { exaCategory?: ExaCategory; queryTag?: string },
+): DiscoveredSource[] {
   if (!output || typeof output !== "object") return [];
   const obj = output as Record<string, unknown>;
   const nested = obj.result && typeof obj.result === "object" ? (obj.result as Record<string, unknown>) : null;
@@ -62,13 +69,17 @@ export function hitsFromExaOutput(output: unknown, query: string): DiscoveredSou
   if (!Array.isArray(results)) return [];
   const found: DiscoveredSource[] = [];
   for (const row of results) {
-    const parsed = fromResult(row as ExaHit, query);
+    const parsed = fromResult(row as ExaHit, query, extras);
     if (parsed) found.push(parsed);
   }
   return found;
 }
 
-function fromResult(result: ExaHit, query: string): DiscoveredSource | null {
+function fromResult(
+  result: ExaHit,
+  query: string,
+  extras?: { exaCategory?: ExaCategory; queryTag?: string },
+): DiscoveredSource | null {
   try {
     const canonicalUrl = canonicalizeUrl(result.url);
     const excerpt =
@@ -82,6 +93,8 @@ function fromResult(result: ExaHit, query: string): DiscoveredSource | null {
       publishedAt: result.publishedDate ?? null,
       highlights: excerpt ? [excerpt] : [],
       query,
+      exaCategory: extras?.exaCategory,
+      queryTag: extras?.queryTag,
     };
   } catch {
     return null;

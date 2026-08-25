@@ -11,13 +11,13 @@ import { mapPool } from "../src/lib/compiler/compile-chunk";
 import {
   buildExaOceanQueue,
   discoveredToSourceRecords,
-  exaOceanQueries,
   exaOceanStopReason,
   formatExaOceanReportMarkdown,
   isExaHardStop,
   type ExaOceanStopReason,
   type ExaOceanTopicResult,
 } from "../src/lib/compiler/exa-ocean";
+import { exaOceanPasses, topicKind } from "../src/lib/compiler/taxonomy";
 import { invokeExaSearch } from "../src/lib/gateway/exa-invoke";
 import { getOceanEntities } from "../src/lib/seed/broad";
 import { FINANCE_SEED_SLUGS } from "../src/lib/seed/finance";
@@ -169,6 +169,7 @@ async function ensureTopic(slug: string, created: string[]): Promise<{ id: strin
     slug: entity.slug,
     name: entity.name,
     entityType: entity.entityType,
+    kind: topicKind(entity),
     description: entity.description,
     aliases: entity.aliases,
     officialDomains: entity.officialDomains,
@@ -185,31 +186,25 @@ async function discoverTopic(slug: string, pass: number): Promise<ExaOceanTopicR
   const entity = getOceanEntities().find((row) => row.slug === slug);
   if (!entity) throw new Error(`Unknown ocean entity: ${slug}`);
   const { id: topicId, createdStub } = await ensureTopic(slug, []);
-  const queries = exaOceanQueries(entity);
+  const passes = exaOceanPasses(entity);
   const errors: string[] = [];
   const allHits: DiscoveredSource[] = [];
   let gatewayCost = 0;
   let rateLimits = 0;
 
-  const results = await mapPool(queries, Math.min(queries.length, EXA_OCEAN_CONCURRENCY), async (query) => {
+  const results = await mapPool(passes, Math.min(passes.length, EXA_OCEAN_CONCURRENCY), async (pass) => {
     if (isExaHardStop(Date.now(), HARD_STOP_MS)) {
-      return { query, hits: [] as DiscoveredSource[], gatewayCostUsd: 0, rateLimit: false, error: "hard_stop" };
+      return { query: pass.query, hits: [] as DiscoveredSource[], gatewayCostUsd: 0, rateLimit: false, error: "hard_stop" };
     }
-    const includeDomains = query.includes("site:") && entity.officialDomains[0] ? entity.officialDomains : undefined;
-    const category =
-      entity.entityType === "research"
-        ? ("research paper" as const)
-        : query.includes("announces")
-          ? ("news" as const)
-          : undefined;
     const invoked = await invokeExaSearch({
-      query,
-      category,
-      includeDomains,
+      query: pass.query,
+      category: pass.category,
+      queryTag: pass.queryTag,
+      includeDomains: pass.includeDomains,
       startPublishedDate: new Date(Date.now() - 400 * 86400000).toISOString(),
     });
     return {
-      query,
+      query: pass.query,
       hits: invoked.hits,
       gatewayCostUsd: invoked.gatewayCostUsd,
       rateLimit: invoked.error?.kind === "rate_limit",
@@ -238,7 +233,7 @@ async function discoverTopic(slug: string, pass: number): Promise<ExaOceanTopicR
     slug,
     ok: mapped.urls.length > 0 || mapped.unchanged > 0,
     pass,
-    queriesRun: queries.length,
+    queriesRun: passes.length,
     hits: mapped.urls.length,
     sourcesAdded: mapped.added,
     sourcesUnchanged: mapped.unchanged,

@@ -4,6 +4,7 @@ import { classifySource } from "./primary";
 import { contentHash } from "./hash";
 import { canonicalizeUrl } from "./urls";
 import type { DiscoveredSource } from "@/lib/gateway/exa";
+import { contentTypeForPass, exaOceanPasses, topicKind, type ExaCategory } from "./taxonomy";
 
 export type ExaOceanStopReason = "hard_stop" | "queue" | "signal" | "quota";
 
@@ -51,30 +52,7 @@ export function buildExaOceanQueue(input: {
 }
 
 export function exaOceanQueries(entity: SeedEntity): string[] {
-  const aliasClause = entity.aliases.slice(0, 4).join(" OR ");
-  const domain = entity.officialDomains[0];
-  const rows = [
-    entity.name,
-    aliasClause ? `${entity.name} ${aliasClause}` : null,
-    domain ? `${entity.name} site:${domain}` : `${entity.name} official website`,
-    `${entity.name} announces OR releases OR launches OR partnership`,
-    entity.entityType === "policy"
-      ? `${entity.name} regulation OR filing OR guidance OR standard`
-      : `${entity.name} documentation OR model card OR technical report OR blog`,
-    entity.entityType === "policy"
-      ? `${entity.name} compliance OR enforcement OR implementation`
-      : `${entity.name} API OR pricing OR availability OR benchmark`,
-    entity.entityType === "policy" ? null : `${entity.name} safety OR evaluation OR red-team OR eval`,
-  ];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const row of rows) {
-    const value = row?.trim();
-    if (!value || seen.has(value)) continue;
-    seen.add(value);
-    out.push(value);
-  }
-  return out;
+  return exaOceanPasses(entity).map((pass) => pass.query);
 }
 
 export function discoveredToSourceRecords(input: {
@@ -109,6 +87,7 @@ export function discoveredToSourceRecords(input: {
       domain: hit.publisherDomain,
       officialDomains: input.entity.officialDomains,
     });
+    const exaCategory: ExaCategory = hit.exaCategory ?? "web";
     pending.push({
       id: prior?.id ?? randomUUID(),
       canonicalUrl,
@@ -124,10 +103,17 @@ export function discoveredToSourceRecords(input: {
       evidenceExcerpt: excerpt,
       metadata: {
         query: hit.query,
+        query_tag: hit.queryTag ?? "web",
         via: "ai-gateway:exaSearch",
         arm: "exa-ocean",
+        topic_id: input.topicId,
         topicId: input.topicId,
         topicSlug: input.entity.slug,
+        topic_kind: topicKind(input.entity),
+        exa_category: exaCategory,
+        content_type: contentTypeForPass(exaCategory, classified.sourceType),
+        domain: hit.publisherDomain,
+        raw_entity_meta: hit.publishedAt ? { published_at: hit.publishedAt } : null,
       },
     });
     added += 1;

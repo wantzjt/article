@@ -1,6 +1,7 @@
 import { gateway } from "ai";
 import { getVercelOidcToken } from "@vercel/oidc";
 import { EXA_NUM_RESULTS, EXA_SEARCH_TYPE, PRIMARY_MODEL } from "@/lib/env";
+import { exaToolArgsForPass, type ExaCategory } from "@/lib/compiler/taxonomy";
 import { hitsFromExaOutput, type DiscoveredSource } from "./exa";
 
 const GATEWAY_LM = "https://ai-gateway.vercel.sh/v4/ai/language-model";
@@ -56,19 +57,24 @@ function toolResultFromContent(content: unknown): unknown {
  */
 export async function invokeExaSearch(input: {
   query: string;
-  category?: "news" | "research paper" | "company";
+  category?: ExaCategory;
+  queryTag?: string;
   includeDomains?: string[];
   startPublishedDate?: string;
 }): Promise<ExaInvokeResult> {
   if (process.env.EXA_API_KEY) {
     throw new Error("EXA_API_KEY is set; ocean:exa uses gateway.tools.exaSearch() only.");
   }
+  const passArgs = exaToolArgsForPass(
+    { category: input.category ?? "web", includeDomains: input.includeDomains },
+    input.startPublishedDate,
+  );
   const tool = gateway.tools.exaSearch({
     type: EXA_SEARCH_TYPE,
     numResults: EXA_NUM_RESULTS,
-    category: input.category,
-    includeDomains: input.includeDomains,
-    startPublishedDate: input.startPublishedDate,
+    category: passArgs.category,
+    includeDomains: passArgs.includeDomains,
+    startPublishedDate: passArgs.startPublishedDate,
     contents: {
       highlights: { maxCharacters: 800 },
       text: { maxCharacters: 2000 },
@@ -134,7 +140,10 @@ export async function invokeExaSearch(input: {
         };
       }
       const json = (await res.json()) as Record<string, unknown>;
-      const hits = hitsFromExaOutput(toolResultFromContent(json.content), input.query);
+      const hits = hitsFromExaOutput(toolResultFromContent(json.content), input.query, {
+        exaCategory: input.category,
+        queryTag: input.queryTag,
+      });
       return {
         query: input.query,
         hits,

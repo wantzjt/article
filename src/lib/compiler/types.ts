@@ -10,6 +10,19 @@ export const ENTITY_TYPES = [
 ] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
+/** Product taxonomy. Maps from entityType; do not confuse with Exa search categories. */
+export const TOPIC_KINDS = [
+  "company",
+  "product",
+  "model",
+  "person",
+  "policy",
+  "standard",
+  "event",
+  "concept",
+] as const;
+export type TopicKind = (typeof TOPIC_KINDS)[number];
+
 export const FINANCE_CLAIM_KINDS = [
   "raised_amount",
   "lead_investor",
@@ -58,6 +71,8 @@ export type SeedEntity = {
   aliases: string[];
   officialDomains: string[];
   launchDemo?: boolean;
+  /** Product taxonomy; derived from entityType when omitted. */
+  kind?: TopicKind;
 };
 
 export type SourceRecord = {
@@ -110,6 +125,8 @@ export type TopicRecord = {
   updatedAt: string;
   lastVerifiedAt: string | null;
   lastMaterialChangeAt: string | null;
+  /** Product kind; derived from entityType when omitted. */
+  kind?: TopicKind;
 };
 
 export type BriefRecord = {
