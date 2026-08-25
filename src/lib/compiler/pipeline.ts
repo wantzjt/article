@@ -27,15 +27,11 @@ import {
   chunkList,
   mapPool,
   rankSourcesForExtract,
+  shouldSkipExtract,
+  sourcesReadyForExtract,
 } from "./compile-chunk";
 import { revalidateTopicSurfaces } from "./revalidate";
-import {
-  clusterOutputSchema,
-  contradictionOutputSchema,
-  extractOutputSchema,
-  renderOutputSchema,
-  verifyOutputSchema,
-} from "./schemas";
+import { extractOutputSchema, renderOutputSchema, verifyOutputSchema } from "./schemas";
 import type { CandidateClaim, ClaimRecord, ClaimSourceRecord, SourceRecord } from "./types";
 import * as store from "@/lib/store/json-store";
 
@@ -196,14 +192,32 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       return { topicId: topic.id, runId };
     }
 
-    const ranked = rankSourcesForExtract(persistedSources, entity.officialDomains);
+    const ranked = rankSourcesForExtract(
+      sourcesReadyForExtract(persistedSources),
+      entity.officialDomains,
+    );
     const chunks = chunkList(ranked, EXTRACT_CHUNK_SIZE).slice(0, MAX_EXTRACT_CHUNKS_PER_TOPIC);
     stage = "extract";
     let claimsProposed = 0;
     let rejected = 0;
     let persistedClaims: ClaimRecord[] = [];
     const compileDeadline = Date.now() + TOPIC_COMPILE_BUDGET_MS;
-    const skipExtract = existingClaims.filter((claim) => claim.status !== "rejected").length >= STRONG_MIN_CLAIMS;
+    const acceptedExisting = existingClaims.filter((claim) => claim.status !== "rejected");
+    const skipExtract = shouldSkipExtract({
+      acceptedClaimCount: acceptedExisting.length,
+      changedSourceCount: changedSources.length,
+      strongMinClaims: STRONG_MIN_CLAIMS,
+    });
+    if (skipExtract) {
+      logPipeline({
+        runId,
+        topicId: topic.id,
+        stage: "extract",
+        sourceCount: ranked.length,
+        claimsAccepted: acceptedExisting.length,
+        message: skipExtract === "enough_claims" ? "skip_extract_enough_claims" : "skip_reextract",
+      });
+    }
 
     for (const [chunkIndex, chunk] of chunks.entries()) {
       if (skipExtract) break;
@@ -415,91 +429,49 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       ["supported", "single_source", "disputed"].includes(claim.status),
     );
 
-    if (publicClaims.length > 1) {
-      stage = "verify";
+    stage = "render";
+    let renderedDescription = topic.description;
+    let whatChanged: Array<{ claimId: string; summary: string }> = publicClaims.slice(0, 3).map((claim) => ({
+      claimId: claim.id,
+      summary: claim.claimText.replace(/\s+/g, " ").trim().slice(0, 160),
+    }));
+    if (publicClaims.length > 0) {
       try {
         assertUnderModelCap(await store.modelSpendTodayUsd());
-        const contradictions = await runWithStageTimeout("verify", VERIFY_CALL_TIMEOUT_MS, (signal) =>
+        const rendered = await runWithStageTimeout("render", 45_000, (signal) =>
           generateStructured({
-            stage: "verify",
+            stage: "render",
             topicId: topic.id,
-            schema: contradictionOutputSchema,
+            schema: renderOutputSchema,
             abortSignal: signal,
             system:
-              "Identify pairs of claims that cannot both be true. Do not average them. If unsure, return no pair.",
-            prompt: publicClaims.map((claim, index) => `${index}: ${claim.claimText}`).join("\n"),
+              "Write a 1-2 sentence topic description using ONLY the listed claims. Reference claim IDs in whatChanged. NPOV. No unsourced facts. No synthetic quotes.",
+            prompt: publicClaims
+              .slice(0, 12)
+              .map((claim) => `${claim.id}: ${claim.claimText} [${claim.status}]`)
+              .join("\n"),
           }),
         );
         await store.recordSpend({
-          stage: "verify",
+          stage: "render",
           topicId: topic.id,
           model: PRIMARY_MODEL,
-          costUsd: contradictions.meta.costUsd,
+          costUsd: rendered.meta.costUsd,
         });
-        for (const pair of contradictions.object.pairs ?? []) {
-          const a = publicClaims[pair.aIndex];
-          const b = publicClaims[pair.bIndex];
-          if (!a || !b) continue;
-          a.status = "disputed";
-          b.status = "disputed";
-          await store.upsertClaim(a);
-          await store.upsertClaim(b);
-          const aLink = allLinks.find((link) => link.claimId === a.id && link.supportType === "supports");
-          const bLink = allLinks.find((link) => link.claimId === b.id && link.supportType === "supports");
-          if (aLink && bLink) {
-            await store.attachClaimSource({
-              claimId: a.id,
-              sourceId: bLink.sourceId,
-              supportType: "disputes",
-              evidenceExcerpt: bLink.evidenceExcerpt,
-              createdAt: new Date().toISOString(),
-            });
-            await store.attachClaimSource({
-              claimId: b.id,
-              sourceId: aLink.sourceId,
-              supportType: "disputes",
-              evidenceExcerpt: aLink.evidenceExcerpt,
-              createdAt: new Date().toISOString(),
-            });
-          }
-        }
+        renderedDescription = rendered.object.description;
+        const knownIds = new Set(publicClaims.map((claim) => claim.id));
+        const fromModel = (rendered.object.whatChanged ?? []).filter((row) => knownIds.has(row.claimId));
+        if (fromModel.length) whatChanged = fromModel;
       } catch (error) {
-        if (!(error instanceof StageTimeoutError)) throw error;
+        if (!(error instanceof StageTimeoutError) && !(error instanceof ModelSpendCapError)) throw error;
         logPipeline({
           runId,
           topicId: topic.id,
-          stage: "verify",
-          durationMs: error.durationMs,
-          message: "contradiction_timeout",
+          stage: "render",
+          durationMs: error instanceof StageTimeoutError ? error.durationMs : 0,
+          message: "render_timeout_use_claim_summaries",
         });
       }
-    }
-
-    stage = "render";
-    let renderedDescription = topic.description;
-    let whatChanged: Array<{ claimId: string; summary: string }> = [];
-    if (publicClaims.length > 0) {
-      assertUnderModelCap(await store.modelSpendTodayUsd());
-      const rendered = await runWithStageTimeout("render", EXTRACT_STAGE_TIMEOUT_MS, (signal) =>
-        generateStructured({
-          stage: "render",
-          topicId: topic.id,
-          schema: renderOutputSchema,
-          abortSignal: signal,
-          system:
-            "Write a 1-2 sentence topic description using ONLY the listed claims. Reference claim IDs in whatChanged. NPOV. No unsourced facts. No synthetic quotes.",
-          prompt: publicClaims.map((claim) => `${claim.id}: ${claim.claimText} [${claim.status}]`).join("\n"),
-        }),
-      );
-      await store.recordSpend({
-        stage: "render",
-        topicId: topic.id,
-        model: PRIMARY_MODEL,
-        costUsd: rendered.meta.costUsd,
-      });
-      renderedDescription = rendered.object.description;
-      const knownIds = new Set(publicClaims.map((claim) => claim.id));
-      whatChanged = (rendered.object.whatChanged ?? []).filter((row) => knownIds.has(row.claimId));
     }
 
     if (material.changed) {
@@ -532,7 +504,8 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       acceptedClaims: publicClaims,
       claimSources: allLinks,
       sources: persistedSources,
-      hasWhatChanged: whatChanged.length > 0 || material.changed,
+      hasWhatChanged:
+        whatChanged.length > 0 || material.changed || publicClaims.length >= STRONG_MIN_CLAIMS,
     });
 
     await store.upsertTopic({
@@ -577,6 +550,43 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       model: PRIMARY_MODEL,
       message: timeout ? "timeout" : "failed",
     });
+    const leftover = (await store.listClaimsForTopic(topic.id)).filter((claim) =>
+      ["supported", "single_source", "disputed"].includes(claim.status),
+    );
+    if (leftover.length >= 1) {
+      const leftoverLinks = await store.listClaimSources(leftover.map((claim) => claim.id));
+      const leftoverSources = await store.listSources();
+      const status = graduateTopic({
+        acceptedClaims: leftover,
+        claimSources: leftoverLinks,
+        sources: leftoverSources,
+        hasWhatChanged: leftover.length >= STRONG_MIN_CLAIMS,
+      });
+      await store.upsertTopic({
+        ...topic,
+        status,
+        lastVerifiedAt: new Date().toISOString(),
+        lastMaterialChangeAt: new Date().toISOString(),
+      });
+      await store.saveRun({
+        id: runId,
+        topicId: topic.id,
+        status: "completed",
+        stages: { discover: "done", extract: "done", verify: "done", render: "done" },
+        error: error instanceof Error ? error.message : "unknown",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      await revalidateTopicSurfaces(entity.slug);
+      logPipeline({
+        runId,
+        topicId: topic.id,
+        stage: "render",
+        claimsAccepted: leftover.length,
+        message: "graduate_after_error",
+      });
+      return { topicId: topic.id, runId };
+    }
     if ((existing?.topic.status ?? "stub") !== "strong") {
       await store.upsertTopic({
         ...topic,

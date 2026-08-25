@@ -4,6 +4,21 @@ export const EXTRACT_CHUNK_SIZE = 5;
 export const VERIFY_CONCURRENCY = 5;
 export const MAX_EXTRACT_CHUNKS_PER_TOPIC = 3;
 export const TOPIC_COMPILE_BUDGET_MS = 8 * 60_000;
+export const MIN_EXTRACT_EXCERPT = 40;
+
+export function shouldSkipExtract(input: {
+  acceptedClaimCount: number;
+  changedSourceCount: number;
+  strongMinClaims: number;
+}): "enough_claims" | "unchanged_hash" | null {
+  if (input.acceptedClaimCount >= input.strongMinClaims) return "enough_claims";
+  if (input.changedSourceCount === 0 && input.acceptedClaimCount >= 1) return "unchanged_hash";
+  return null;
+}
+
+export function sourcesReadyForExtract(sources: SourceRecord[]): SourceRecord[] {
+  return sources.filter((source) => source.evidenceExcerpt.trim().length >= MIN_EXTRACT_EXCERPT);
+}
 
 export function rankSourcesForExtract(
   sources: SourceRecord[],

@@ -5,6 +5,8 @@ import {
   chunkList,
   mapPool,
   rankSourcesForExtract,
+  shouldSkipExtract,
+  sourcesReadyForExtract,
 } from "@/lib/compiler/compile-chunk";
 import type { SourceRecord } from "@/lib/compiler/types";
 
@@ -54,5 +56,26 @@ describe("compile chunks", () => {
     });
     expect(results).toEqual([2, 4, 6, 8, 10]);
     expect(maxLive).toBeLessThanOrEqual(3);
+  });
+
+  it("skips extract when claims already exist or hashes are unchanged", () => {
+    expect(
+      shouldSkipExtract({ acceptedClaimCount: 5, changedSourceCount: 3, strongMinClaims: 5 }),
+    ).toBe("enough_claims");
+    expect(
+      shouldSkipExtract({ acceptedClaimCount: 2, changedSourceCount: 0, strongMinClaims: 5 }),
+    ).toBe("unchanged_hash");
+    expect(
+      shouldSkipExtract({ acceptedClaimCount: 0, changedSourceCount: 0, strongMinClaims: 5 }),
+    ).toBeNull();
+  });
+
+  it("drops empty excerpts before extract", () => {
+    const ready = sourcesReadyForExtract([
+      source("empty", "openai.com", true, "   "),
+      source("short", "openai.com", true, "too short"),
+      source("ok", "openai.com", true, "a substantial excerpt with enough evidence text"),
+    ]);
+    expect(ready.map((row) => row.id)).toEqual(["ok"]);
   });
 });
