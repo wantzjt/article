@@ -9,7 +9,11 @@ import {
   wrapLanguageModel,
 } from "ai";
 import type { ZodType } from "zod";
-import { PRIMARY_MODEL } from "@/lib/env";
+import {
+  COMPILE_MODEL_FALLBACK,
+  PRIMARY_MODEL,
+  isFreeGlm52Compile,
+} from "@/lib/env";
 import { estimateCostUsd } from "@/lib/compiler/spend";
 import { isAbortError } from "@/lib/compiler/timeout";
 import type { PipelineStage } from "@/lib/compiler/types";
@@ -22,14 +26,75 @@ const structuredModel = wrapLanguageModel({
 export type GatewayCallMeta = {
   stage: PipelineStage;
   topicId?: string;
+  model: string;
+  provider?: string;
   usage?: { inputTokens?: number; outputTokens?: number };
   costUsd: number;
 };
 
 function tagsFor(stage: PipelineStage, topicId?: string): string[] {
-  const tags = [`stage:${stage}`, "promo:eve-gateway"];
+  const tags = [
+    `stage:${stage}`,
+    `model:${PRIMARY_MODEL}`,
+    "promo:eve-gateway",
+  ];
+  if (isFreeGlm52Compile()) tags.push("promo:glm-5.2-blackbox");
   if (topicId) tags.push(`topic_id:${topicId}`);
   return tags;
+}
+
+function gatewayOptions(stage: PipelineStage, topicId?: string) {
+  return {
+    tags: tagsFor(stage, topicId),
+    // Never list glm-5.3 here unless COMPILE_MODEL_FALLBACK is set.
+    ...(COMPILE_MODEL_FALLBACK ? { models: [COMPILE_MODEL_FALLBACK] } : {}),
+  };
+}
+
+function readGatewayLine(result: {
+  providerMetadata?: Record<string, unknown>;
+}): { provider?: string; reportedCostUsd?: number } {
+  const gw = result.providerMetadata?.gateway as Record<string, unknown> | undefined;
+  if (!gw) return {};
+  const routing = gw.routing as Record<string, unknown> | undefined;
+  const provider =
+    (typeof routing?.resolvedProvider === "string" && routing.resolvedProvider) ||
+    (typeof gw.provider === "string" && gw.provider) ||
+    undefined;
+  const rawCost = gw.cost ?? gw.totalCost ?? gw.costUsd;
+  const reportedCostUsd =
+    typeof rawCost === "number"
+      ? rawCost
+      : typeof rawCost === "string"
+        ? Number(rawCost)
+        : undefined;
+  return {
+    provider,
+    reportedCostUsd: Number.isFinite(reportedCostUsd) ? reportedCostUsd : undefined,
+  };
+}
+
+function metaFor(
+  stage: PipelineStage,
+  topicId: string | undefined,
+  result: {
+    totalUsage?: { inputTokens?: number; outputTokens?: number };
+    providerMetadata?: Record<string, unknown>;
+  },
+): GatewayCallMeta {
+  const usage = usageOf(result);
+  const line = readGatewayLine(result);
+  return {
+    stage,
+    topicId,
+    model: PRIMARY_MODEL,
+    provider: line.provider,
+    usage,
+    costUsd: estimateCostUsd(usage, {
+      model: PRIMARY_MODEL,
+      reportedCostUsd: line.reportedCostUsd,
+    }),
+  };
 }
 
 function structuredFailure(stage: PipelineStage, error: unknown): Error {
@@ -103,9 +168,7 @@ export async function generateStructured<T>(input: {
     system: `${input.system}\nYou must call submit_result. Never wrap the payload in an "answer" string.`,
     prompt: input.prompt,
     providerOptions: {
-      gateway: {
-        tags: tagsFor(input.stage, input.topicId),
-      },
+      gateway: gatewayOptions(input.stage, input.topicId),
     },
   });
 
@@ -133,22 +196,16 @@ export async function generateStructured<T>(input: {
         system: `${input.system}\nReturn only JSON matching the schema.`,
         prompt: input.prompt,
         providerOptions: {
-          gateway: { tags: tagsFor(input.stage, input.topicId) },
+          gateway: gatewayOptions(input.stage, input.topicId),
         },
       });
       if (objectResult.output == null) {
         throw new Error(`structured output missing for stage ${input.stage}`);
       }
       submitted = input.schema.parse(objectResult.output);
-      const usage = usageOf(objectResult);
       return {
         object: submitted,
-        meta: {
-          stage: input.stage,
-          topicId: input.topicId,
-          usage,
-          costUsd: estimateCostUsd(usage),
-        },
+        meta: metaFor(input.stage, input.topicId, objectResult),
       };
     } catch (error) {
       if (isAbortError(error) || input.abortSignal?.aborted) throw error;
@@ -156,15 +213,9 @@ export async function generateStructured<T>(input: {
     }
   }
 
-  const usage = usageOf(result);
   return {
     object: submitted,
-    meta: {
-      stage: input.stage,
-      topicId: input.topicId,
-      usage,
-      costUsd: estimateCostUsd(usage),
-    },
+    meta: metaFor(input.stage, input.topicId, result),
   };
 }
 
@@ -183,24 +234,11 @@ export async function generateWithExaSearch(input: {
     system: input.system,
     prompt: input.prompt,
     providerOptions: {
-      gateway: {
-        tags: tagsFor(input.stage, input.topicId),
-      },
+      gateway: gatewayOptions(input.stage, input.topicId),
     },
   });
-  const usage = result.totalUsage
-    ? {
-        inputTokens: result.totalUsage.inputTokens,
-        outputTokens: result.totalUsage.outputTokens,
-      }
-    : undefined;
   return {
     result,
-    meta: {
-      stage: input.stage,
-      topicId: input.topicId,
-      usage,
-      costUsd: estimateCostUsd(usage),
-    } satisfies GatewayCallMeta,
+    meta: metaFor(input.stage, input.topicId, result),
   };
 }

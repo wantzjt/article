@@ -120,7 +120,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     await store.recordSpend({
       stage: "discover",
       topicId: topic.id,
-      model: PRIMARY_MODEL,
+      model: discoverMeta.model,
       costUsd: discoverMeta.costUsd,
     });
     const discovered = collectExaSources(result.toolResults ?? [], queries);
@@ -257,14 +257,14 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
           stage: "extract",
           durationMs: Date.now() - chunkStarted,
           claimsProposed: extracted.object.claims.length,
-          model: PRIMARY_MODEL,
+          model: extracted.meta.model,
           costUsd: extracted.meta.costUsd,
-          message: `extract_chunk_${chunkIndex + 1}_of_${chunks.length}`,
+          message: `extract_ok chunk_${chunkIndex + 1}_of_${chunks.length}${extracted.meta.provider ? ` provider:${extracted.meta.provider}` : ""}`,
         });
         await store.recordSpend({
           stage: "extract",
           topicId: topic.id,
-          model: PRIMARY_MODEL,
+          model: extracted.meta.model,
           costUsd: extracted.meta.costUsd,
         });
 
@@ -316,7 +316,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
             await store.recordSpend({
               stage: "verify",
               topicId: topic.id,
-              model: PRIMARY_MODEL,
+              model: verified.meta.model,
               costUsd: verified.meta.costUsd,
             });
             if (verified.object.verdict !== "supported") return { ok: false as const };
@@ -389,6 +389,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
             topicId: topic.id,
             stage: "verify",
             claimsAccepted: acceptedNow,
+            model: PRIMARY_MODEL,
             message: "enough_claims_graduate",
           });
           break;
@@ -400,7 +401,8 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
           durationMs: Date.now() - verifyStarted,
           claimsAccepted: accepted.length,
           claimsRejected: verdicts.filter((row) => !row.ok).length,
-          message: `verify_chunk_${chunkIndex + 1}_of_${chunks.length}`,
+          model: PRIMARY_MODEL,
+          message: `verify_ok chunk_${chunkIndex + 1}_of_${chunks.length}`,
         });
       } catch (error) {
         if (error instanceof StageTimeoutError) {
@@ -455,7 +457,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         await store.recordSpend({
           stage: "render",
           topicId: topic.id,
-          model: PRIMARY_MODEL,
+          model: rendered.meta.model,
           costUsd: rendered.meta.costUsd,
         });
         renderedDescription = rendered.object.description;

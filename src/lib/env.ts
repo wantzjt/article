@@ -3,7 +3,37 @@
  * Brand strings live in brand.ts. Secrets never get NEXT_PUBLIC_ prefixes.
  */
 
-export const PRIMARY_MODEL = process.env.PRIMARY_MODEL ?? "zai/glm-5.3";
+export const FREE_COMPILE_MODEL = "zai/glm-5.2";
+export const METERED_COMPILE_MODEL = "zai/glm-5.3";
+/** Blackbox/eve GLM-5.2 promo. After this instant, 5.2 is not assumed free. */
+export const GLM_52_FREE_UNTIL = process.env.GLM_52_FREE_UNTIL ?? "2026-08-27T23:59:00-05:00";
+
+export function isGlm52FreeWindow(now = new Date()): boolean {
+  const until = Date.parse(GLM_52_FREE_UNTIL);
+  return Number.isFinite(until) && now.getTime() <= until;
+}
+
+/**
+ * Compile model. Default is zai/glm-5.2 during the Blackbox/eve free window,
+ * then zai/glm-5.3 under the $8 cap. Never silently swaps 5.2 → 5.3.
+ */
+export function resolvePrimaryModel(
+  env: Record<string, string | undefined> = process.env,
+  now = new Date(),
+): string {
+  const explicit = env.PRIMARY_MODEL?.trim();
+  if (explicit) return explicit;
+  return isGlm52FreeWindow(now) ? FREE_COMPILE_MODEL : METERED_COMPILE_MODEL;
+}
+
+export const PRIMARY_MODEL = resolvePrimaryModel();
+
+/** Optional explicit fallback model. Empty means fail closed — no 5.3 retry. */
+export const COMPILE_MODEL_FALLBACK = (process.env.COMPILE_MODEL_FALLBACK ?? "").trim();
+
+export function isFreeGlm52Compile(model = PRIMARY_MODEL, now = new Date()): boolean {
+  return model === FREE_COMPILE_MODEL && isGlm52FreeWindow(now);
+}
 
 /** Model token spend only. Exa via AI Gateway is a separate promo path and is not capped here. */
 export const MAX_DAILY_MODEL_SPEND_USD = Number(

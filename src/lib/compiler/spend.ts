@@ -1,4 +1,4 @@
-import { MAX_DAILY_MODEL_SPEND_USD } from "../env";
+import { FREE_COMPILE_MODEL, MAX_DAILY_MODEL_SPEND_USD, isFreeGlm52Compile } from "../env";
 
 export class ModelSpendCapError extends Error {
   constructor(message: string) {
@@ -7,14 +7,25 @@ export class ModelSpendCapError extends Error {
   }
 }
 
-export function estimateCostUsd(usage?: {
-  inputTokens?: number;
-  outputTokens?: number;
-}): number {
+export function estimateCostUsd(
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+  },
+  options?: { model?: string; reportedCostUsd?: number; now?: Date },
+): number {
+  if (typeof options?.reportedCostUsd === "number" && Number.isFinite(options.reportedCostUsd)) {
+    return Math.max(0, options.reportedCostUsd);
+  }
+  const model = options?.model;
+  if (model && isFreeGlm52Compile(model, options?.now)) return 0;
   const input = usage?.inputTokens ?? 0;
   const output = usage?.outputTokens ?? 0;
-  // Conservative placeholder until Gateway returns billed cost. GLM list is cheap; stay under the cap.
-  return (input * 0.6 + output * 2.2) / 1_000_000;
+  const rates =
+    model === FREE_COMPILE_MODEL
+      ? { in: 0.8, out: 2.5234 }
+      : { in: 1.4, out: 4.4 };
+  return (input * rates.in + output * rates.out) / 1_000_000;
 }
 
 export function assertUnderModelCap(spentUsd: number): void {

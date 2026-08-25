@@ -3,7 +3,14 @@ import path from "node:path";
 import { ingestTopic } from "../src/lib/compiler/pipeline";
 import { ModelSpendCapError } from "../src/lib/compiler/spend";
 import { StageTimeoutError } from "../src/lib/compiler/timeout";
-import { MAX_DAILY_MODEL_SPEND_USD, OCEAN_HARD_STOP } from "../src/lib/env";
+import {
+  COMPILE_MODEL_FALLBACK,
+  GLM_52_FREE_UNTIL,
+  MAX_DAILY_MODEL_SPEND_USD,
+  OCEAN_HARD_STOP,
+  PRIMARY_MODEL,
+  isGlm52FreeWindow,
+} from "../src/lib/env";
 import { LAUNCH_DEMO_SLUG, SEED_ENTITIES } from "../src/lib/seed/entities";
 import { getGraph, getTopicBySlug, modelSpendTodayUsd } from "../src/lib/store/json-store";
 
@@ -79,6 +86,10 @@ async function main() {
   log({
     event: "start",
     hardStop: OCEAN_HARD_STOP,
+    primaryModel: PRIMARY_MODEL,
+    compileModelFallback: COMPILE_MODEL_FALLBACK || null,
+    glm52FreeUntil: GLM_52_FREE_UNTIL,
+    glm52FreeWindow: isGlm52FreeWindow(),
     maxDailyModelSpendUsd: MAX_DAILY_MODEL_SPEND_USD,
     topics: SEED_ENTITIES.length,
     graphSources: graph.sources.length,

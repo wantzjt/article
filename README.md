@@ -8,7 +8,7 @@ This repo is a living topic graph: Topic → Claim → Source → Change. The pu
 
 ## Promo path (do not bypass)
 
-- **Model:** Vercel AI Gateway, `PRIMARY_MODEL=zai/glm-5.3`, OIDC (`vercel env pull`). No direct Z.ai key.
+- **Model:** Vercel AI Gateway, `PRIMARY_MODEL=zai/glm-5.2` (Blackbox/eve free through 2026-08-27 23:59 CT). After that window, default flips to metered `zai/glm-5.3` under `$8`. No silent 5.3 fallback. OIDC (`vercel env pull`). No direct Z.ai key.
 - **Exa:** `gateway.tools.exaSearch()` on AI Gateway / Eve. Free through 2026-08-31. **No `EXA_API_KEY`. No Marketplace PAYG.**
 - **Model spend guard:** `MAX_DAILY_MODEL_SPEND_USD` (default 8). This does **not** cap Exa promo search.
 - **Database:** Neon free plan when Marketplace provisioning completes. Until then the committed GLM-5.3 fixture is enough to review the topic page.
