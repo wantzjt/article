@@ -31,6 +31,14 @@ Live ingest (Gateway OIDC required):
 npm run ingest -- glm-5-3
 ```
 
+Night runner (bounded overnight compile — do not use `npm run ocean` for the demo window):
+
+```bash
+npm run ocean:night
+```
+
+Stops at **06:00 America/Chicago**, **$6.50** model spend today, empty queue, or Exa hard stop (`2026-08-30 23:59 CT`). Compile stays `PRIMARY_MODEL=zai/glm-5.2`. No silent 5.3 fallback. No `EXA_API_KEY`. Resume-safe via `data/ocean-night-progress.json`. Writes `artifacts/ocean-night-report.json` and `artifacts/OCEAN_REPORT.md`. Public snapshot: `GET /api/status`.
+
 Admin HTTP trigger (secret in `ADMIN_SECRET`):
 
 ```
