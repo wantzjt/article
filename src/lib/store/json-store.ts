@@ -12,7 +12,7 @@ import type {
 import { assembleTopic, emptyGraph, type GraphSnapshot, type PipelineRunRecord, type SpendEvent, type TopicGraph } from "./graph";
 import { glm53Fixture } from "@/lib/fixture/glm-5-3";
 import { SEED_ENTITIES } from "@/lib/seed/entities";
-import { loadGraphFromNeon, saveGraphToNeon } from "./neon";
+import { loadGraphFromNeon, saveGraphToNeon, upsertSourcesToNeon } from "./neon";
 
 const DATA_PATH = path.join(process.cwd(), "data", "graph.json");
 
@@ -151,19 +151,57 @@ export async function upsertTopic(input: Omit<TopicRecord, "createdAt" | "update
 }
 
 export async function upsertSource(input: SourceRecord): Promise<SourceRecord> {
+  const [row] = await upsertSources([input]);
+  return row;
+}
+
+export async function upsertSources(inputs: SourceRecord[]): Promise<SourceRecord[]> {
+  if (inputs.length === 0) return [];
   const graph = await load();
-  const existing = graph.sources.find(
-    (row) => row.id === input.id || row.canonicalUrl === input.canonicalUrl,
-  );
-  if (existing) {
-    const id = existing.id;
-    Object.assign(existing, input, { id });
-    await persist(graph);
-    return existing;
+  const byUrl = new Map(graph.sources.map((row) => [row.canonicalUrl, row]));
+  const byId = new Map(graph.sources.map((row) => [row.id, row]));
+  const dirty: SourceRecord[] = [];
+  const result: SourceRecord[] = [];
+  for (const input of inputs) {
+    const existing = byUrl.get(input.canonicalUrl) ?? byId.get(input.id);
+    if (existing) {
+      const hashUnchanged = existing.contentHash === input.contentHash;
+      Object.assign(existing, input, { id: existing.id, canonicalUrl: existing.canonicalUrl });
+      if (!hashUnchanged) dirty.push(existing);
+      result.push(existing);
+      continue;
+    }
+    graph.sources.push(input);
+    byUrl.set(input.canonicalUrl, input);
+    byId.set(input.id, input);
+    dirty.push(input);
+    result.push(input);
   }
-  graph.sources.push(input);
-  await persist(graph);
-  return input;
+  if (dirty.length === 0) return result;
+  memory = graph;
+  if (process.env.VITEST) return result;
+  writeQueue = writeQueue.then(async () => {
+    try {
+      await mkdir(path.dirname(DATA_PATH), { recursive: true });
+      await writeFile(DATA_PATH, JSON.stringify(graph, null, 2));
+    } catch {
+      // Read-only deployments keep the graph in memory for the instance.
+    }
+    if (process.env.DATABASE_URL && !process.env.VITEST) {
+      try {
+        await upsertSourcesToNeon(dirty);
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            kind: "citationforge.neon_persist_failed",
+            message: error instanceof Error ? error.message : "unknown",
+          }),
+        );
+      }
+    }
+  });
+  await writeQueue;
+  return result;
 }
 
 export async function findSourceByUrl(canonicalUrl: string): Promise<SourceRecord | null> {

@@ -88,42 +88,7 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
       ],
     );
   }
-  for (const source of graph.sources) {
-    await sql.query(
-      `INSERT INTO sources (
-         id, canonical_url, title, publisher, publisher_domain, author, published_at,
-         retrieved_at, source_type, primary_status, content_hash, evidence_excerpt, metadata
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb)
-       ON CONFLICT (id) DO UPDATE SET
-         canonical_url = EXCLUDED.canonical_url,
-         title = EXCLUDED.title,
-         publisher = EXCLUDED.publisher,
-         publisher_domain = EXCLUDED.publisher_domain,
-         author = EXCLUDED.author,
-         published_at = EXCLUDED.published_at,
-         retrieved_at = EXCLUDED.retrieved_at,
-         source_type = EXCLUDED.source_type,
-         primary_status = EXCLUDED.primary_status,
-         content_hash = EXCLUDED.content_hash,
-         evidence_excerpt = EXCLUDED.evidence_excerpt,
-         metadata = EXCLUDED.metadata`,
-      [
-        source.id,
-        source.canonicalUrl,
-        source.title,
-        source.publisher,
-        source.publisherDomain,
-        source.author,
-        source.publishedAt,
-        source.retrievedAt,
-        source.sourceType,
-        source.primaryStatus,
-        source.contentHash,
-        source.evidenceExcerpt,
-        JSON.stringify(source.metadata ?? {}),
-      ],
-    );
-  }
+  await upsertSourcesToNeon(graph.sources);
   for (const claim of graph.claims) {
     await sql.query(
       `INSERT INTO claims (
@@ -229,6 +194,60 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
          error = EXCLUDED.error,
          updated_at = EXCLUDED.updated_at`,
       [run.id, run.topicId, run.status, JSON.stringify(run.stages ?? {}), run.error, run.createdAt, run.updatedAt],
+    );
+  }
+}
+
+const SOURCE_COLUMNS = 13;
+const SOURCE_CHUNK = 40;
+
+export async function upsertSourcesToNeon(sources: SourceRecord[]): Promise<void> {
+  if (sources.length === 0) return;
+  const sql = db();
+  for (let offset = 0; offset < sources.length; offset += SOURCE_CHUNK) {
+    const batch = sources.slice(offset, offset + SOURCE_CHUNK);
+    const values: string[] = [];
+    const params: unknown[] = [];
+    batch.forEach((source, index) => {
+      const base = index * SOURCE_COLUMNS;
+      values.push(
+        `($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6},$${base + 7},$${base + 8},$${base + 9},$${base + 10},$${base + 11},$${base + 12},$${base + 13}::jsonb)`,
+      );
+      params.push(
+        source.id,
+        source.canonicalUrl,
+        source.title,
+        source.publisher,
+        source.publisherDomain,
+        source.author,
+        source.publishedAt,
+        source.retrievedAt,
+        source.sourceType,
+        source.primaryStatus,
+        source.contentHash,
+        source.evidenceExcerpt,
+        JSON.stringify(source.metadata ?? {}),
+      );
+    });
+    await sql.query(
+      `INSERT INTO sources (
+         id, canonical_url, title, publisher, publisher_domain, author, published_at,
+         retrieved_at, source_type, primary_status, content_hash, evidence_excerpt, metadata
+       ) VALUES ${values.join(",")}
+       ON CONFLICT (canonical_url) DO UPDATE SET
+         title = EXCLUDED.title,
+         publisher = EXCLUDED.publisher,
+         publisher_domain = EXCLUDED.publisher_domain,
+         author = EXCLUDED.author,
+         published_at = EXCLUDED.published_at,
+         retrieved_at = EXCLUDED.retrieved_at,
+         source_type = EXCLUDED.source_type,
+         primary_status = EXCLUDED.primary_status,
+         content_hash = EXCLUDED.content_hash,
+         evidence_excerpt = EXCLUDED.evidence_excerpt,
+         metadata = EXCLUDED.metadata
+       WHERE sources.content_hash IS DISTINCT FROM EXCLUDED.content_hash`,
+      params,
     );
   }
 }

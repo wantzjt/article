@@ -96,6 +96,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       costUsd: discoverMeta.costUsd,
     });
     const discovered = collectExaSources(result.toolResults ?? [], queries);
+    const pendingSources: SourceRecord[] = [];
     for (const hit of discovered) {
       const canonicalUrl = canonicalizeUrl(hit.canonicalUrl);
       const excerpt = (hit.highlights.join(" ") || "").slice(0, 800);
@@ -109,7 +110,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         domain: hit.publisherDomain,
         officialDomains: entity.officialDomains,
       });
-      const source = await store.upsertSource({
+      pendingSources.push({
         id: prior?.id ?? randomUUID(),
         canonicalUrl,
         title: hit.title,
@@ -124,8 +125,8 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         evidenceExcerpt: excerpt,
         metadata: { query: hit.query, via: "ai-gateway:exaSearch" },
       });
-      persistedSources.push(source);
     }
+    persistedSources.push(...(await store.upsertSources(pendingSources)));
 
     const seenSourceIds = new Set(persistedSources.map((source) => source.id));
     for (const source of await store.listSources()) {
