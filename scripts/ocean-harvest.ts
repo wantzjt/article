@@ -85,10 +85,25 @@ async function main() {
     graphClaims: graph.claims.length,
   });
 
-  const queue = [
-    ...SEED_ENTITIES.filter((entity) => entity.slug !== LAUNCH_DEMO_SLUG),
-    ...SEED_ENTITIES.filter((entity) => entity.slug === LAUNCH_DEMO_SLUG),
-  ];
+  const graphForQueue = await getGraph();
+  const officialCount = (slug: string) => {
+    const entity = SEED_ENTITIES.find((row) => row.slug === slug);
+    if (!entity) return 0;
+    return graphForQueue.sources.filter((source) => entity.officialDomains.includes(source.publisherDomain))
+      .length;
+  };
+  const claimCount = (topicId: string) =>
+    graphForQueue.claims.filter((claim) => claim.topicId === topicId && claim.status !== "rejected").length;
+  const queue = [...SEED_ENTITIES]
+    .filter((entity) => entity.slug !== LAUNCH_DEMO_SLUG)
+    .sort((a, b) => {
+      const topicA = graphForQueue.topics.find((row) => row.slug === a.slug);
+      const topicB = graphForQueue.topics.find((row) => row.slug === b.slug);
+      const claims = claimCount(topicB?.id ?? "") - claimCount(topicA?.id ?? "");
+      if (claims !== 0) return claims;
+      return officialCount(b.slug) - officialCount(a.slug);
+    });
+  queue.push(...SEED_ENTITIES.filter((entity) => entity.slug === LAUNCH_DEMO_SLUG));
 
   for (const entity of queue) {
     if (pastHardStop()) {
@@ -96,9 +111,9 @@ async function main() {
       break;
     }
 
+    const live = await snapshot(entity.slug);
     const prior = progress.results[entity.slug];
-    if (prior?.ok) continue;
-    if ((prior?.claims ?? 0) > 0) continue;
+    if (prior?.ok || live.status === "strong") continue;
 
     let spend = await modelSpendTodayUsd();
     if (spend >= MAX_DAILY_MODEL_SPEND_USD) {

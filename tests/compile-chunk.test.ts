@@ -27,9 +27,9 @@ function source(id: string, domain: string, primary: boolean, excerpt: string): 
 }
 
 describe("compile chunks", () => {
-  it("keeps extract chunks at 10 and official/primary first", () => {
-    expect(EXTRACT_CHUNK_SIZE).toBe(10);
-    expect(VERIFY_CONCURRENCY).toBe(3);
+  it("keeps extract chunks small and official/primary first", () => {
+    expect(EXTRACT_CHUNK_SIZE).toBe(5);
+    expect(VERIFY_CONCURRENCY).toBe(5);
     const ranked = rankSourcesForExtract(
       [
         source("news", "techcrunch.com", false, "short"),

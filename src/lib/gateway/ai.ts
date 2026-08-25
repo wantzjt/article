@@ -42,6 +42,31 @@ function structuredFailure(stage: PipelineStage, error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+function coerceStructured<T>(raw: unknown, schema: ZodType<T>): T | null {
+  let value: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (value && typeof value === "object" && "answer" in value) {
+    const answer = (value as { answer: unknown }).answer;
+    if (typeof answer === "string") {
+      try {
+        value = JSON.parse(answer);
+      } catch {
+        value = answer;
+      }
+    } else {
+      value = answer;
+    }
+  }
+  const parsed = schema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 function usageOf(result: { totalUsage?: { inputTokens?: number; outputTokens?: number } }) {
   return result.totalUsage
     ? {
@@ -87,8 +112,11 @@ export async function generateStructured<T>(input: {
   if (submitted == null) {
     const fallback = result.toolResults.find((row) => row.toolName === "submit_result");
     if (fallback && "input" in fallback) {
-      submitted = input.schema.parse(fallback.input);
+      submitted = coerceStructured(fallback.input, input.schema);
     }
+  }
+  if (submitted == null && result.text) {
+    submitted = coerceStructured(result.text, input.schema);
   }
 
   if (submitted == null) {

@@ -1,7 +1,9 @@
 import type { SourceRecord } from "./types";
 
-export const EXTRACT_CHUNK_SIZE = 10;
-export const VERIFY_CONCURRENCY = 3;
+export const EXTRACT_CHUNK_SIZE = 5;
+export const VERIFY_CONCURRENCY = 5;
+export const MAX_EXTRACT_CHUNKS_PER_TOPIC = 3;
+export const TOPIC_COMPILE_BUDGET_MS = 8 * 60_000;
 
 export function rankSourcesForExtract(
   sources: SourceRecord[],

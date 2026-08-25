@@ -17,7 +17,8 @@ export const extractOutputSchema = z.object({
 
 export const verifyOutputSchema = z.object({
   verdict: z.enum(["supported", "not_supported"]),
-  reason: z.string().min(4).max(400),
+  reason: z.string().max(400).optional().default("ok"),
+  explanation: z.string().max(400).optional(),
 });
 
 export const contradictionOutputSchema = z.object({

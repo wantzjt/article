@@ -9,12 +9,11 @@ import { contentHash } from "./hash";
 import { normalizeClaimText } from "./normalize";
 import { mergeDuplicateClaims, statusFromEvidence, findMatchingClaim } from "./claims";
 import { gateCandidateClaim, excerptSupportsClaim } from "./gate";
-import { graduateTopic, shouldPublishBrief } from "./publication";
+import { graduateTopic, shouldPublishBrief, STRONG_MIN_CLAIMS } from "./publication";
 import { detectMaterialChange } from "./versions";
-import { assertUnderModelCap } from "./spend";
+import { assertUnderModelCap, ModelSpendCapError } from "./spend";
 import { logPipeline } from "./logger";
 import {
-  CLUSTER_STAGE_TIMEOUT_MS,
   EXTRACT_STAGE_TIMEOUT_MS,
   StageTimeoutError,
   VERIFY_CALL_TIMEOUT_MS,
@@ -22,6 +21,8 @@ import {
 } from "./timeout";
 import {
   EXTRACT_CHUNK_SIZE,
+  MAX_EXTRACT_CHUNKS_PER_TOPIC,
+  TOPIC_COMPILE_BUDGET_MS,
   VERIFY_CONCURRENCY,
   chunkList,
   mapPool,
@@ -85,6 +86,29 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     ];
 
     const persistedSources: SourceRecord[] = [];
+    const existingClaimsAtStart = await store.listClaimsForTopic(topic.id);
+    const acceptedAtStart = existingClaimsAtStart.filter((claim) => claim.status !== "rejected");
+    const officialExisting = (await store.listSources()).filter((source) =>
+      entity.officialDomains.includes(source.publisherDomain),
+    );
+    const skipDiscover = acceptedAtStart.length >= 1 || officialExisting.length >= 8;
+    if (skipDiscover) {
+      persistedSources.push(...officialExisting);
+      const linked = await store.listClaimSources(acceptedAtStart.map((claim) => claim.id));
+      const byId = new Map((await store.listSources()).map((source) => [source.id, source]));
+      for (const link of linked) {
+        const source = byId.get(link.sourceId);
+        if (source && !persistedSources.some((row) => row.id === source.id)) persistedSources.push(source);
+      }
+      logPipeline({
+        runId,
+        topicId: topic.id,
+        stage: "discover",
+        sourceCount: persistedSources.length,
+        claimsAccepted: acceptedAtStart.length,
+        message: "skip_discover_compile_first",
+      });
+    } else {
     const { result, meta: discoverMeta } = await generateWithExaSearch({
       stage: "discover",
       topicId: topic.id,
@@ -135,6 +159,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       });
     }
     persistedSources.push(...(await store.upsertSources(pendingSources)));
+    }
 
     const seenSourceIds = new Set(persistedSources.map((source) => source.id));
     for (const source of await store.listSources()) {
@@ -152,37 +177,6 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       return !prior || prior.contentHash !== source.contentHash;
     });
     const existingClaims = await store.listClaimsForTopic(topic.id);
-    if (
-      changedSources.length === 0 &&
-      existingClaims.some((claim) => claim.status !== "rejected")
-    ) {
-      await store.upsertTopic({
-        ...topic,
-        lastVerifiedAt: new Date().toISOString(),
-      });
-      logPipeline({
-        runId,
-        topicId: topic.id,
-        stage: "render",
-        sourceCount: persistedSources.length,
-        claimsProposed: 0,
-        claimsAccepted: existingClaims.filter((claim) => claim.status !== "rejected").length,
-        claimsRejected: 0,
-        durationMs: Date.now() - started,
-        model: PRIMARY_MODEL,
-        message: "skip_reextract_unchanged_sources",
-      });
-      await store.saveRun({
-        id: runId,
-        topicId: topic.id,
-        status: "completed",
-        stages: { discover: "done", extract: "done", verify: "done", render: "done" },
-        error: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-      return { topicId: topic.id, runId };
-    }
 
     if (persistedSources.length === 0) {
       await store.upsertTopic({
@@ -203,13 +197,26 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     }
 
     const ranked = rankSourcesForExtract(persistedSources, entity.officialDomains);
-    const chunks = chunkList(ranked, EXTRACT_CHUNK_SIZE);
+    const chunks = chunkList(ranked, EXTRACT_CHUNK_SIZE).slice(0, MAX_EXTRACT_CHUNKS_PER_TOPIC);
     stage = "extract";
     let claimsProposed = 0;
     let rejected = 0;
     let persistedClaims: ClaimRecord[] = [];
+    const compileDeadline = Date.now() + TOPIC_COMPILE_BUDGET_MS;
+    const skipExtract = existingClaims.filter((claim) => claim.status !== "rejected").length >= STRONG_MIN_CLAIMS;
 
     for (const [chunkIndex, chunk] of chunks.entries()) {
+      if (skipExtract) break;
+      if (Date.now() >= compileDeadline) {
+        logPipeline({
+          runId,
+          topicId: topic.id,
+          stage: "extract",
+          message: "compile_budget_stop",
+          claimsAccepted: persistedClaims.length,
+        });
+        break;
+      }
       assertUnderModelCap(await store.modelSpendTodayUsd());
       const chunkStarted = Date.now();
       try {
@@ -266,50 +273,6 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         });
         candidates = mergeDuplicateClaims(candidates);
 
-        if (candidates.length > 1) {
-          assertUnderModelCap(await store.modelSpendTodayUsd());
-          try {
-            const clustered = await runWithStageTimeout("cluster", CLUSTER_STAGE_TIMEOUT_MS, (signal) =>
-              generateStructured({
-                stage: "cluster",
-                topicId: topic.id,
-                schema: clusterOutputSchema,
-                abortSignal: signal,
-                system: "Group semantically equivalent claims. Do not invent claims.",
-                prompt: candidates.map((claim, index) => `${index}: ${claim.claimText}`).join("\n"),
-              }),
-            );
-            await store.recordSpend({
-              stage: "cluster",
-              topicId: topic.id,
-              model: PRIMARY_MODEL,
-              costUsd: clustered.meta.costUsd,
-            });
-            const used = new Set<number>();
-            const next: CandidateClaim[] = [];
-            for (const group of clustered.object.groups ?? []) {
-              const members = group.memberIndexes.filter((index) => candidates[index]);
-              if (members.length === 0) continue;
-              const representative = candidates[group.representativeIndex] ?? candidates[members[0]];
-              next.push(representative);
-              for (const index of members) used.add(index);
-            }
-            candidates.forEach((claim, index) => {
-              if (!used.has(index)) next.push(claim);
-            });
-            candidates = next;
-          } catch (error) {
-            if (!(error instanceof StageTimeoutError)) throw error;
-            logPipeline({
-              runId,
-              topicId: topic.id,
-              stage: "cluster",
-              durationMs: error.durationMs,
-              message: "timeout",
-            });
-          }
-        }
-
         stage = "verify";
         const knownClaims = await store.listClaimsForTopic(topic.id);
         const verifyStarted = Date.now();
@@ -345,8 +308,8 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
             if (verified.object.verdict !== "supported") return { ok: false as const };
             return { ok: true as const, candidate, source };
           } catch (error) {
-            if (error instanceof StageTimeoutError) return { ok: false as const };
-            throw error;
+            if (error instanceof ModelSpendCapError) throw error;
+            return { ok: false as const };
           }
         });
 
@@ -402,6 +365,19 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
           });
           persistedClaims.push(await store.upsertClaim(claim));
           for (const link of related) await store.attachClaimSource(link);
+        }
+        const acceptedNow = (await store.listClaimsForTopic(topic.id)).filter(
+          (claim) => claim.status !== "rejected",
+        ).length;
+        if (acceptedNow >= STRONG_MIN_CLAIMS) {
+          logPipeline({
+            runId,
+            topicId: topic.id,
+            stage: "verify",
+            claimsAccepted: acceptedNow,
+            message: "enough_claims_graduate",
+          });
+          break;
         }
         logPipeline({
           runId,
