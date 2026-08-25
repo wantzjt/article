@@ -1,8 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ingestTopic } from "../src/lib/compiler/pipeline";
 import {
-  NIGHT_MAX_TIMEOUT_CYCLES,
   NIGHT_PRIORITY_SLUGS,
   NIGHT_SPEND_CEILING_USD,
   buildNightQueue,
@@ -12,6 +11,7 @@ import {
   nightStopReason,
   type NightStopReason,
 } from "../src/lib/compiler/night-policy";
+import { recordEmptyTimeoutCycle, secondNightDecision, type NightLockFile } from "../src/lib/compiler/fail-closed";
 import { formatNightReportMarkdown, summarizeOcean, type NightReport, type NightTopicResult } from "../src/lib/compiler/ocean-report";
 import { ModelSpendCapError } from "../src/lib/compiler/spend";
 import { StageTimeoutError } from "../src/lib/compiler/timeout";
@@ -25,6 +25,7 @@ import { LAUNCH_DEMO_SLUG, SEED_ENTITIES } from "../src/lib/seed/entities";
 import { getGraph, getTopicBySlug, modelSpendTodayUsd } from "../src/lib/store/json-store";
 
 const PROGRESS_PATH = path.join(process.cwd(), "data", "ocean-night-progress.json");
+const LOCK_PATH = path.join(process.cwd(), "data", "ocean-night.lock");
 const REPORT_JSON_PATH = path.join(process.cwd(), "artifacts", "ocean-night-report.json");
 const REPORT_MD_PATH = path.join(process.cwd(), "artifacts", "OCEAN_REPORT.md");
 const HARD_STOP_MS = Date.parse(OCEAN_HARD_STOP);
@@ -35,6 +36,7 @@ type NightProgress = {
   stopReason: NightStopReason | null;
   primaryModel: string;
   spendCeilingUsd: number;
+  pid?: number;
   timeoutCycles: Record<string, number>;
   lastClaimsDelta: Record<string, number>;
   results: Record<string, NightTopicResult>;
@@ -70,6 +72,37 @@ async function loadProgress(stopAt: string, spendCeilingUsd: number): Promise<Ni
     lastClaimsDelta: {},
     results: {},
   };
+}
+
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readLock(): Promise<NightLockFile | null> {
+  try {
+    return JSON.parse(await readFile(LOCK_PATH, "utf8")) as NightLockFile;
+  } catch {
+    return null;
+  }
+}
+
+async function writeLock(): Promise<void> {
+  await mkdir(path.dirname(LOCK_PATH), { recursive: true });
+  const lock: NightLockFile = { pid: process.pid, startedAt: new Date().toISOString() };
+  await writeFile(LOCK_PATH, JSON.stringify(lock, null, 2));
+}
+
+async function releaseLock(): Promise<void> {
+  try {
+    await unlink(LOCK_PATH);
+  } catch {
+    // already gone
+  }
 }
 
 async function saveProgress(progress: NightProgress): Promise<void> {
@@ -135,12 +168,35 @@ async function main() {
     throw new Error(`Invalid OCEAN_HARD_STOP: ${OCEAN_HARD_STOP}`);
   }
 
+  const existingLock = await readLock();
+  const decision = secondNightDecision({
+    lock: existingLock,
+    currentPid: process.pid,
+    lockPidAlive: existingLock ? pidAlive(existingLock.pid) : false,
+  });
+  if (decision === "refuse") {
+    log({ event: "refuse_second_instance", pid: existingLock?.pid });
+    console.error(`ocean:night already running (pid ${existingLock?.pid}).`);
+    process.exit(2);
+  }
+
   const spendCeilingUsd = nightSpendCeilingUsd(
     MAX_DAILY_MODEL_SPEND_USD,
     Number(process.env.OCEAN_NIGHT_SPEND_USD ?? NIGHT_SPEND_CEILING_USD),
   );
   const stopAtMs = nextNightStopMs();
   const progress = await loadProgress(new Date(stopAtMs).toISOString(), spendCeilingUsd);
+  if (
+    progress.pid &&
+    progress.pid !== process.pid &&
+    progress.stopReason == null &&
+    pidAlive(progress.pid)
+  ) {
+    log({ event: "refuse_second_instance", pid: progress.pid, via: "progress" });
+    console.error(`ocean:night already running (pid ${progress.pid}).`);
+    process.exit(2);
+  }
+  progress.pid = process.pid;
   const graph = await getGraph();
   const officialSourceCount: Record<string, number> = {};
   for (const entity of SEED_ENTITIES) {
@@ -164,10 +220,33 @@ async function main() {
     hardStop: OCEAN_HARD_STOP,
     queued: queue.length,
     resumed: Object.keys(progress.results).length,
+    pid: process.pid,
   });
+  await writeLock();
   await persist(progress);
 
+  let shuttingDown = false;
+  const shutdown = async (reason: NightStopReason) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    progress.stopReason = progress.stopReason ?? reason;
+    try {
+      await persist(progress);
+    } finally {
+      await releaseLock();
+    }
+    log({ event: "stop", reason: progress.stopReason, signal: reason === "signal" });
+    process.exit(0);
+  };
+  process.once("SIGINT", () => {
+    void shutdown("signal");
+  });
+  process.once("SIGTERM", () => {
+    void shutdown("signal");
+  });
+
   for (const [index, slug] of queue.entries()) {
+    if (shuttingDown) break;
     const remaining = queue.length - index;
     const spend = await modelSpendTodayUsd();
     const stop = nightStopReason({
@@ -226,9 +305,11 @@ async function main() {
       const claimsDelta = after.claims - before.claims;
       progress.lastClaimsDelta[slug] = claimsDelta;
       const timeout = error instanceof StageTimeoutError;
-      if (timeout && claimsDelta <= 0) {
-        progress.timeoutCycles[slug] = (progress.timeoutCycles[slug] ?? 0) + 1;
-      }
+      progress.timeoutCycles[slug] = recordEmptyTimeoutCycle({
+        timeout,
+        claimsDelta,
+        timeoutCycles: progress.timeoutCycles[slug] ?? 0,
+      });
       const message = error instanceof Error ? error.message : "unknown";
       progress.results[slug] = {
         at: new Date().toISOString(),
@@ -238,6 +319,7 @@ async function main() {
         spendCap: error instanceof ModelSpendCapError,
         ...after,
         claimsDelta,
+        timeoutCycles: progress.timeoutCycles[slug] ?? 0,
       };
       log({
         event: "ingest_fail",
@@ -270,6 +352,7 @@ async function main() {
     }) ?? "queue";
   }
   const report = await persist(progress);
+  await releaseLock();
   log({
     event: "done",
     stopReason: progress.stopReason,
@@ -286,7 +369,8 @@ async function main() {
   });
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error(error instanceof Error ? error.message : error);
+  await releaseLock();
   process.exit(1);
 });

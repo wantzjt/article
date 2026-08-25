@@ -26,7 +26,7 @@ export type ChicagoWall = {
   second: number;
 };
 
-export type NightStopReason = "clock" | "spend" | "queue" | "hard_stop";
+export type NightStopReason = "clock" | "spend" | "queue" | "hard_stop" | "signal";
 
 export type NightSkipReason = "already_ok" | "strong" | "timeout_burn";
 

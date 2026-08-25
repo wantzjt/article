@@ -10,6 +10,7 @@ import { normalizeClaimText } from "./normalize";
 import { mergeDuplicateClaims, statusFromEvidence, findMatchingClaim } from "./claims";
 import { dropClaimsWithoutKnownSource, excerptSupportsClaim, gateCandidateClaim } from "./gate";
 import { failClosedStatus, graduateTopic, shouldPublishBrief, STRONG_MIN_CLAIMS } from "./publication";
+import { acceptVerifyObject, shouldRunExtract, statusAfterRenderTimeout } from "./fail-closed";
 import { detectMaterialChange } from "./versions";
 import { assertUnderModelCap, ModelSpendCapError } from "./spend";
 import { logPipeline } from "./logger";
@@ -171,7 +172,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     });
     const existingClaims = await store.listClaimsForTopic(topic.id);
 
-    if (persistedSources.length === 0) {
+    if (!shouldRunExtract(persistedSources.length)) {
       await store.upsertTopic({
         ...topic,
         status: failClosedStatus(existing?.topic.status ?? topic.status, "stub"),
@@ -319,7 +320,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
               model: verified.meta.model,
               costUsd: verified.meta.costUsd,
             });
-            if (verified.object.verdict !== "supported") return { ok: false as const };
+            if (!acceptVerifyObject(verified.object)) return { ok: false as const };
             return { ok: true as const, candidate, source };
           } catch (error) {
             if (error instanceof ModelSpendCapError) throw error;
@@ -558,15 +559,16 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     if (leftover.length >= 1) {
       const leftoverLinks = await store.listClaimSources(leftover.map((claim) => claim.id));
       const leftoverSources = await store.listSources();
-      const status = failClosedStatus(
-        existing?.topic.status ?? topic.status,
-        graduateTopic({
+      const status = statusAfterRenderTimeout({
+        currentStatus: existing?.topic.status ?? topic.status,
+        leftoverPublicCount: leftover.length,
+        leftoverGraduate: graduateTopic({
           acceptedClaims: leftover,
           claimSources: leftoverLinks,
           sources: leftoverSources,
           hasWhatChanged: leftover.length >= STRONG_MIN_CLAIMS,
         }),
-      );
+      });
       await store.upsertTopic({
         ...topic,
         status,

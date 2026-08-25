@@ -37,7 +37,15 @@ Night runner (bounded overnight compile — do not use `npm run ocean` for the d
 npm run ocean:night
 ```
 
-Stops at **06:00 America/Chicago**, **$6.50** model spend today, empty queue, or Exa hard stop (`2026-08-30 23:59 CT`). Compile stays `PRIMARY_MODEL=zai/glm-5.2`. No silent 5.3 fallback. No `EXA_API_KEY`. Resume-safe via `data/ocean-night-progress.json`. Writes `artifacts/ocean-night-report.json` and `artifacts/OCEAN_REPORT.md` on each topic finish and on stop. Public snapshot: `GET /api/status`.
+Stops at **06:00 America/Chicago**, **$6.50** model spend today, empty queue, or Exa hard stop (`2026-08-30 23:59 CT`). Compile stays `PRIMARY_MODEL=zai/glm-5.2`. No silent 5.3 fallback. No `EXA_API_KEY`. Resume-safe via `data/ocean-night-progress.json`. Writes `artifacts/ocean-night-report.json` and `artifacts/OCEAN_REPORT.md` on each topic finish and on stop. Public snapshot: `GET /api/status`. A second `npm run ocean:night` exits 2 if the lock PID is still alive.
+
+**Stop cleanly (writes the morning report, then exits):**
+
+```bash
+kill -INT $(pgrep -f 'scripts/night-ocean.ts' | head -1)
+# or Ctrl+C in the ocean:night terminal
+# do not kill -9 — that skips the report flush
+```
 
 ## Morning checklist
 

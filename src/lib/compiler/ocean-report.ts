@@ -114,6 +114,7 @@ export type NightTopicResult = {
   sources?: number;
   claims?: number;
   claimsDelta?: number;
+  timeoutCycles?: number;
 };
 
 export type NightReport = {
