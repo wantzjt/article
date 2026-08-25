@@ -14,6 +14,7 @@ import {
   exaOceanStopReason,
   formatExaOceanReportMarkdown,
   isExaHardStop,
+  exaModelVehicleAllowed,
   type ExaOceanStopReason,
   type ExaOceanTopicResult,
 } from "../src/lib/compiler/exa-ocean";
@@ -269,6 +270,16 @@ async function main() {
 
   const progress = await loadProgress();
   progress.stopReason = null;
+  if (!exaModelVehicleAllowed()) {
+    progress.stopReason = "protect";
+    progress.errors.push(
+      "Blocked: gateway.tools.exaSearch() still executes only as a provider tool on a language-model request, which bills TARX Gateway credits. EXA_ALLOW_MODEL_VEHICLE is unset. Protecting the ~$10 float. Free Exa promo is unused until a tools-only path exists or PM sets EXA_ALLOW_MODEL_VEHICLE=1.",
+    );
+    await saveProgress(progress);
+    await writeReport(progress);
+    log({ event: "refuse_model_vehicle", creditsProtect: true });
+    process.exit(0);
+  }
   let signaled = false;
   const onSignal = async () => {
     if (signaled) return;

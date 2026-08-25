@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildExaOceanQueue,
   discoveredToSourceRecords,
+  exaModelVehicleAllowed,
   exaOceanQueries,
   exaOceanStopReason,
   isExaHardStop,
@@ -52,6 +53,12 @@ describe("exa ocean discover-only", () => {
       expect(ocean.some((row) => row.slug === slug)).toBe(false);
     }
     expect(getBroadSeedEntities().length).toBeGreaterThanOrEqual(20);
+  });
+
+  it("blocks the language-model vehicle unless EXA_ALLOW_MODEL_VEHICLE=1", () => {
+    expect(exaModelVehicleAllowed({})).toBe(false);
+    expect(exaModelVehicleAllowed({ EXA_ALLOW_MODEL_VEHICLE: "1" })).toBe(true);
+    expect(exaModelVehicleAllowed({ EXA_ALLOW_MODEL_VEHICLE: "true" })).toBe(false);
   });
 
   it("honors hard stop and double-start lock", () => {

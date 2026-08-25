@@ -6,7 +6,12 @@ import { canonicalizeUrl } from "./urls";
 import type { DiscoveredSource } from "@/lib/gateway/exa";
 import { contentTypeForPass, exaOceanPasses, topicKind, type ExaCategory } from "./taxonomy";
 
-export type ExaOceanStopReason = "hard_stop" | "queue" | "signal" | "quota";
+export type ExaOceanStopReason = "hard_stop" | "queue" | "signal" | "quota" | "protect";
+
+/** Language-model vehicle for provider Exa bills team credits. Off unless explicitly allowed. */
+export function exaModelVehicleAllowed(env: Record<string, string | undefined> = process.env): boolean {
+  return env.EXA_ALLOW_MODEL_VEHICLE === "1";
+}
 
 export type ExaOceanTopicResult = {
   slug: string;

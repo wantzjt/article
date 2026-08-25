@@ -1,6 +1,7 @@
 import { gateway } from "ai";
 import { getVercelOidcToken } from "@vercel/oidc";
 import { EXA_NUM_RESULTS, EXA_SEARCH_TYPE, PRIMARY_MODEL } from "@/lib/env";
+import { exaModelVehicleAllowed } from "@/lib/compiler/exa-ocean";
 import { exaToolArgsForPass, type ExaCategory } from "@/lib/compiler/taxonomy";
 import { hitsFromExaOutput, type DiscoveredSource } from "./exa";
 
@@ -64,6 +65,18 @@ export async function invokeExaSearch(input: {
 }): Promise<ExaInvokeResult> {
   if (process.env.EXA_API_KEY) {
     throw new Error("EXA_API_KEY is set; ocean:exa uses gateway.tools.exaSearch() only.");
+  }
+  if (!exaModelVehicleAllowed()) {
+    return {
+      query: input.query,
+      hits: [],
+      gatewayCostUsd: 0,
+      error: {
+        kind: "quota",
+        message:
+          "Blocked model vehicle: Exa provider tool requires a language-model request that bills Gateway credits. EXA_ALLOW_MODEL_VEHICLE is unset.",
+      },
+    };
   }
   const passArgs = exaToolArgsForPass(
     { category: input.category ?? "web", includeDomains: input.includeDomains },
