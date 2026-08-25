@@ -25,12 +25,14 @@ export function cachedSourcesForTopic(
   sources: SourceRecord[],
   officialDomains: string[],
   linkedSourceIds: Iterable<string> = [],
+  topicId?: string,
 ): SourceRecord[] {
   const official = new Set(officialDomains);
   const linked = new Set(linkedSourceIds);
-  return sources.filter(
-    (source) => official.has(source.publisherDomain) || linked.has(source.id),
-  );
+  return sources.filter((source) => {
+    if (official.has(source.publisherDomain) || linked.has(source.id)) return true;
+    return Boolean(topicId && source.metadata?.topicId === topicId);
+  });
 }
 
 export function rankSourcesForExtract(

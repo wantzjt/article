@@ -31,6 +31,14 @@ Live ingest (Gateway OIDC required):
 npm run ingest -- glm-5-3
 ```
 
+Exa warehouse (discover-only, no compile, no claims):
+
+```bash
+npm run ocean:exa
+```
+
+Pulls `gateway.tools.exaSearch()` for every AI seed plus `data/seeds-broad.json` (chips, cloud, robotics, policy, eval, agent/vector infra). Stops at **2026-08-30 23:59 America/Chicago**. Resume-safe. Does not write claims. Report: `artifacts/exa-ocean-report.md`.
+
 Finance arm (off the night queue; 21 bounded seeds in `src/lib/seed/finance.ts`):
 
 ```bash

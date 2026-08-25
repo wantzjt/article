@@ -54,6 +54,20 @@ function isExaResponse(output: unknown): output is ExaToolOutput {
   return Boolean(output && typeof output === "object" && "results" in (output as object));
 }
 
+export function hitsFromExaOutput(output: unknown, query: string): DiscoveredSource[] {
+  if (!output || typeof output !== "object") return [];
+  const obj = output as Record<string, unknown>;
+  const nested = obj.result && typeof obj.result === "object" ? (obj.result as Record<string, unknown>) : null;
+  const results = obj.results ?? nested?.results;
+  if (!Array.isArray(results)) return [];
+  const found: DiscoveredSource[] = [];
+  for (const row of results) {
+    const parsed = fromResult(row as ExaHit, query);
+    if (parsed) found.push(parsed);
+  }
+  return found;
+}
+
 function fromResult(result: ExaHit, query: string): DiscoveredSource | null {
   try {
     const canonicalUrl = canonicalizeUrl(result.url);

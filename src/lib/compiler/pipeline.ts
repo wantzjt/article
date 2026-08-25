@@ -98,7 +98,12 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     const persistedSources: SourceRecord[] = [];
     const existingClaimsAtStart = await store.listClaimsForTopic(topic.id);
     const acceptedAtStart = existingClaimsAtStart.filter((claim) => claim.status !== "rejected");
-    const officialExisting = cachedSourcesForTopic(await store.listSources(), entity.officialDomains);
+    const officialExisting = cachedSourcesForTopic(
+      await store.listSources(),
+      entity.officialDomains,
+      [],
+      topic.id,
+    );
     const skipDiscover = acceptedAtStart.length >= 1 || officialExisting.length >= 8;
     if (skipDiscover) {
       persistedSources.push(...officialExisting);
@@ -176,7 +181,12 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     }
 
     const seenSourceIds = new Set(persistedSources.map((source) => source.id));
-    for (const source of cachedSourcesForTopic(await store.listSources(), entity.officialDomains, seenSourceIds)) {
+    for (const source of cachedSourcesForTopic(
+      await store.listSources(),
+      entity.officialDomains,
+      seenSourceIds,
+      topic.id,
+    )) {
       if (seenSourceIds.has(source.id)) continue;
       persistedSources.push(source);
       seenSourceIds.add(source.id);

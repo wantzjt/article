@@ -47,5 +47,7 @@ next-env.d.ts
 /data/ocean-progress.json
 /data/ocean-night-progress.json
 /data/ocean-night.lock
+/data/ocean-exa-progress.json
+/data/ocean-exa.lock
 /artifacts/ocean-night-report.json
 /artifacts/OCEAN_REPORT.md

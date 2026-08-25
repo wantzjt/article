@@ -48,6 +48,8 @@ export const EXA_SEARCH_TYPE = (process.env.EXA_SEARCH_TYPE ?? "auto") as
   | "instant";
 export const EXA_NUM_RESULTS = Number(process.env.EXA_NUM_RESULTS ?? "25");
 export const EXA_CONCURRENCY = Number(process.env.EXA_CONCURRENCY ?? "8");
+/** Discover-only ocean: target 15–25 parallel Exa tool calls. */
+export const EXA_OCEAN_CONCURRENCY = Number(process.env.EXA_OCEAN_CONCURRENCY ?? "20");
 export const OCEAN_HARD_STOP = process.env.OCEAN_HARD_STOP ?? "2026-08-30T23:59:00-05:00";
 
 export const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";

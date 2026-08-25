@@ -13,6 +13,7 @@
     "ingest": "dotenv -e .env.local -- tsx scripts/ingest-topic.ts",
     "ocean": "dotenv -e .env.local -- tsx scripts/ocean-harvest.ts",
     "ocean:night": "dotenv -e .env.local -- tsx scripts/night-ocean.ts",
+    "ocean:exa": "dotenv -e .env.local -- tsx scripts/ocean-exa.ts",
     "finance:discover": "dotenv -e .env.local -- tsx scripts/finance-discover.ts",
     "db:migrate": "dotenv -e .env.local -- tsx scripts/migrate.ts",
     "db:sync": "dotenv -e .env.local -- tsx scripts/sync-neon.ts"
