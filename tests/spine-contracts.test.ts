@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { GET as topicAudioGet } from "@/app/api/topic/[slug]/audio/route";
 import { playMeta } from "@/lib/audio/brief";
-import { isAudioTopic } from "@/lib/audio/constants";
+import { audioNotAvailableError, isAudioTopic } from "@/lib/audio/constants";
 import { scriptFromClaims } from "@/lib/audio/scriptFromClaims";
 import { ingestTopic } from "@/lib/compiler/pipeline";
-import { gateCandidateClaim } from "@/lib/compiler/gate";
+import { dropClaimsWithoutKnownSource, gateCandidateClaim } from "@/lib/compiler/gate";
 import { resolveEntity } from "@/lib/compiler/entity-resolution";
-import { graduateTopic, robotsForStatus } from "@/lib/compiler/publication";
+import { failClosedStatus, graduateTopic, robotsForStatus } from "@/lib/compiler/publication";
 import { statusFromEvidence } from "@/lib/compiler/claims";
 import { canonicalizeUrl, isSameCanonicalUrl } from "@/lib/compiler/urls";
 import { glm53Fixture } from "@/lib/fixture/glm-5-3";
@@ -18,6 +18,9 @@ import {
   resetMemoryForTests,
   upsertSource,
 } from "@/lib/store/json-store";
+import { cachedSourcesForTopic, shouldSkipExtract } from "@/lib/compiler/compile-chunk";
+import { nightStopReason, nextNightStopMs } from "@/lib/compiler/night-policy";
+import { publicStatusPayload, STATUS_PUBLIC_KEYS, summarizeOcean } from "@/lib/compiler/ocean-report";
 import { SEED_ENTITIES } from "@/lib/seed/entities";
 import type { ClaimRecord, ClaimSourceRecord, SourceRecord } from "@/lib/compiler/types";
 
@@ -97,6 +100,17 @@ describe("claim without source rejected", () => {
       entities: [],
     });
     expect(decision.ok).toBe(false);
+  });
+
+  it("drops extract claims whose SOURCE_ID is not in the chunk", () => {
+    const kept = dropClaimsWithoutKnownSource(
+      [
+        { source_id: "s1", claim: "ok" },
+        { source_id: "stolen-from-other-topic", claim: "no" },
+      ],
+      new Set(["s1"]),
+    );
+    expect(kept.map((row) => row.source_id)).toEqual(["s1"]);
   });
 });
 
@@ -211,5 +225,95 @@ describe("no auto-create topics from NER", () => {
     expect(resolveEntity({ name: "Some random startup" }, [])).toEqual({ kind: "new" });
     expect(SEED_ENTITIES.some((row) => row.slug === "glm-5-3")).toBe(true);
     await expect(ingestTopic("not-a-seed-topic")).rejects.toThrow(/Unknown seed entity/);
+  });
+});
+
+describe("domain-scoped source cache (no cross-topic theft)", () => {
+  it("does not feed openai.com sources into an xAI compile", () => {
+    const openai = source("oai", "openai.com", true);
+    const xai = source("x", "x.ai", true);
+    const reused = cachedSourcesForTopic([openai, xai], ["x.ai"]);
+    expect(reused.map((row) => row.id)).toEqual(["x"]);
+  });
+
+  it("may reuse official-domain sources plus already-linked ids only", () => {
+    const official = source("anth", "anthropic.com", true);
+    const linkedNews = source("nyt", "nytimes.com", false);
+    const other = source("meta", "ai.meta.com", true);
+    const reused = cachedSourcesForTopic([official, linkedNews, other], ["anthropic.com"], ["nyt"]);
+    expect(reused.map((row) => row.id).sort()).toEqual(["anth", "nyt"]);
+  });
+});
+
+describe("skip_extract_enough_claims / skip_reextract", () => {
+  it("skips extract when claims already meet strong min or hashes are unchanged", () => {
+    expect(
+      shouldSkipExtract({ acceptedClaimCount: 5, changedSourceCount: 9, strongMinClaims: 5 }),
+    ).toBe("enough_claims");
+    expect(
+      shouldSkipExtract({ acceptedClaimCount: 2, changedSourceCount: 0, strongMinClaims: 5 }),
+    ).toBe("unchanged_hash");
+    expect(
+      shouldSkipExtract({ acceptedClaimCount: 0, changedSourceCount: 4, strongMinClaims: 5 }),
+    ).toBeNull();
+  });
+});
+
+describe("fail-closed timeout does not demote strong", () => {
+  it("keeps strong when extract/verify would otherwise stub or provisional", () => {
+    expect(failClosedStatus("strong", "stub")).toBe("strong");
+    expect(failClosedStatus("strong", "provisional")).toBe("strong");
+    expect(failClosedStatus("provisional", "stub")).toBe("stub");
+    expect(failClosedStatus("stub", "provisional")).toBe("provisional");
+  });
+});
+
+describe("night stop predicates", () => {
+  it("stops at 06:00 CT, $6.50, queue done, or hard stop", () => {
+    expect(nextNightStopMs(new Date("2026-08-26T10:59:00.000Z"))).toBe(Date.parse("2026-08-26T11:00:00.000Z"));
+    const base = {
+      nowMs: 1_000,
+      stopAtMs: 5_000,
+      spendUsd: 1,
+      spendCeilingUsd: 6.5,
+      queueRemaining: 4,
+      hardStopMs: 9_000,
+    };
+    expect(nightStopReason({ ...base, nowMs: 5_000 })).toBe("clock");
+    expect(nightStopReason({ ...base, spendUsd: 6.5 })).toBe("spend");
+    expect(nightStopReason({ ...base, queueRemaining: 0 })).toBe("queue");
+    expect(nightStopReason({ ...base, nowMs: 9_000 })).toBe("hard_stop");
+    expect(nightStopReason(base)).toBeNull();
+  });
+});
+
+describe("/api/status shape is public and secret-free", () => {
+  it("emits a stable key set without env secrets", () => {
+    const payload = publicStatusPayload({
+      model: "zai/glm-5.2",
+      maxDailyModelSpendUsd: 8,
+      hardStop: "2026-08-30T23:59:00-05:00",
+      summary: summarizeOcean(emptyGraph()),
+    });
+    expect(Object.keys(payload).sort()).toEqual([...STATUS_PUBLIC_KEYS].sort());
+    const blob = JSON.stringify(payload);
+    expect(blob).not.toMatch(/DATABASE_URL|ADMIN_SECRET|VERCEL_OIDC|EXA_API_KEY|BLOB_READ_WRITE|eyJ[A-Za-z0-9_-]{20,}/);
+    expect(payload.ok).toBe(true);
+    expect(payload.topics).toEqual({ strong: 0, provisional: 0, stub: 0 });
+  });
+});
+
+describe("Play audio is glm-5-3 only", () => {
+  it("blocks every non-demo slug with audio_not_available", async () => {
+    expect(isAudioTopic("glm-5-3")).toBe(true);
+    expect(audioNotAvailableError("glm-5-3")).toBeNull();
+    for (const slug of ["openai", "anthropic", "claude-4", "xai", "google-deepmind"]) {
+      expect(audioNotAvailableError(slug)).toBe("audio_not_available");
+      const response = await topicAudioGet(new Request(`http://article.fm/api/topic/${slug}/audio`), {
+        params: Promise.resolve({ slug }),
+      });
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: "audio_not_available" });
+    }
   });
 });

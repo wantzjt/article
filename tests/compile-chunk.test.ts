@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EXTRACT_CHUNK_SIZE,
   VERIFY_CONCURRENCY,
+  cachedSourcesForTopic,
   chunkList,
   mapPool,
   rankSourcesForExtract,
@@ -77,5 +78,16 @@ describe("compile chunks", () => {
       source("ok", "openai.com", true, "a substantial excerpt with enough evidence text"),
     ]);
     expect(ready.map((row) => row.id)).toEqual(["ok"]);
+  });
+
+  it("does not leak other-topic domains into the compile cache", () => {
+    const reused = cachedSourcesForTopic(
+      [
+        source("oai", "openai.com", true, "openai official excerpt text"),
+        source("xai", "x.ai", true, "xai official excerpt text here"),
+      ],
+      ["x.ai"],
+    );
+    expect(reused.map((row) => row.id)).toEqual(["xai"]);
   });
 });

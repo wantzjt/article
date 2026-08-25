@@ -8,8 +8,8 @@ import { canonicalizeUrl } from "./urls";
 import { contentHash } from "./hash";
 import { normalizeClaimText } from "./normalize";
 import { mergeDuplicateClaims, statusFromEvidence, findMatchingClaim } from "./claims";
-import { gateCandidateClaim, excerptSupportsClaim } from "./gate";
-import { graduateTopic, shouldPublishBrief, STRONG_MIN_CLAIMS } from "./publication";
+import { dropClaimsWithoutKnownSource, excerptSupportsClaim, gateCandidateClaim } from "./gate";
+import { failClosedStatus, graduateTopic, shouldPublishBrief, STRONG_MIN_CLAIMS } from "./publication";
 import { detectMaterialChange } from "./versions";
 import { assertUnderModelCap, ModelSpendCapError } from "./spend";
 import { logPipeline } from "./logger";
@@ -26,6 +26,7 @@ import {
   VERIFY_CONCURRENCY,
   chunkList,
   mapPool,
+  cachedSourcesForTopic,
   rankSourcesForExtract,
   shouldSkipExtract,
   sourcesReadyForExtract,
@@ -84,9 +85,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     const persistedSources: SourceRecord[] = [];
     const existingClaimsAtStart = await store.listClaimsForTopic(topic.id);
     const acceptedAtStart = existingClaimsAtStart.filter((claim) => claim.status !== "rejected");
-    const officialExisting = (await store.listSources()).filter((source) =>
-      entity.officialDomains.includes(source.publisherDomain),
-    );
+    const officialExisting = cachedSourcesForTopic(await store.listSources(), entity.officialDomains);
     const skipDiscover = acceptedAtStart.length >= 1 || officialExisting.length >= 8;
     if (skipDiscover) {
       persistedSources.push(...officialExisting);
@@ -158,12 +157,10 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     }
 
     const seenSourceIds = new Set(persistedSources.map((source) => source.id));
-    for (const source of await store.listSources()) {
+    for (const source of cachedSourcesForTopic(await store.listSources(), entity.officialDomains, seenSourceIds)) {
       if (seenSourceIds.has(source.id)) continue;
-      if (entity.officialDomains.includes(source.publisherDomain)) {
-        persistedSources.push(source);
-        seenSourceIds.add(source.id);
-      }
+      persistedSources.push(source);
+      seenSourceIds.add(source.id);
     }
 
     const priorSources = await store.listSources();
@@ -177,7 +174,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     if (persistedSources.length === 0) {
       await store.upsertTopic({
         ...topic,
-        status: "stub",
+        status: failClosedStatus(existing?.topic.status ?? topic.status, "stub"),
         lastVerifiedAt: new Date().toISOString(),
       });
       await store.saveRun({
@@ -269,7 +266,10 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
         });
 
         const sourceIds = new Set(chunk.map((source) => source.id));
-        let candidates: CandidateClaim[] = extracted.object.claims.flatMap((claim) => {
+        let candidates: CandidateClaim[] = dropClaimsWithoutKnownSource(
+          extracted.object.claims,
+          sourceIds,
+        ).flatMap((claim) => {
           if (!sourceIds.has(claim.source_id)) return [];
           const source = chunk.find((row) => row.id === claim.source_id);
           const excerpt = (claim.evidence_excerpt || source?.evidenceExcerpt || "").slice(0, 800);
@@ -558,12 +558,15 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     if (leftover.length >= 1) {
       const leftoverLinks = await store.listClaimSources(leftover.map((claim) => claim.id));
       const leftoverSources = await store.listSources();
-      const status = graduateTopic({
-        acceptedClaims: leftover,
-        claimSources: leftoverLinks,
-        sources: leftoverSources,
-        hasWhatChanged: leftover.length >= STRONG_MIN_CLAIMS,
-      });
+      const status = failClosedStatus(
+        existing?.topic.status ?? topic.status,
+        graduateTopic({
+          acceptedClaims: leftover,
+          claimSources: leftoverLinks,
+          sources: leftoverSources,
+          hasWhatChanged: leftover.length >= STRONG_MIN_CLAIMS,
+        }),
+      );
       await store.upsertTopic({
         ...topic,
         status,

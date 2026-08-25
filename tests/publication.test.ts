@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { graduateTopic, robotsForStatus, shouldPublishBrief } from "@/lib/compiler/publication";
+import { failClosedStatus, graduateTopic, robotsForStatus, shouldPublishBrief } from "@/lib/compiler/publication";
 import type { ClaimRecord, ClaimSourceRecord, SourceRecord } from "@/lib/compiler/types";
 
 function claim(id: string): ClaimRecord {
@@ -76,5 +76,9 @@ describe("publication gate", () => {
   it("requires two changed claims for a brief", () => {
     expect(shouldPublishBrief(1)).toBe(false);
     expect(shouldPublishBrief(2)).toBe(true);
+  });
+
+  it("never demotes strong on fail-closed", () => {
+    expect(failClosedStatus("strong", "stub")).toBe("strong");
   });
 });

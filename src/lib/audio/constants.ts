@@ -13,3 +13,7 @@ export function estimatedMinutes(characterCount: number): number {
 export function isAudioTopic(slug: string): boolean {
   return slug === TTS_ALLOWED_SLUG;
 }
+
+export function audioNotAvailableError(slug: string): "audio_not_available" | null {
+  return isAudioTopic(slug) ? null : "audio_not_available";
+}

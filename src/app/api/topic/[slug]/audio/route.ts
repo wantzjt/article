@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTopicBySlug } from "@/lib/store/json-store";
 import { AudioBudgetError, getOrCreateTopicAudio } from "@/lib/audio/brief";
-import { isAudioTopic } from "@/lib/audio/constants";
+import { audioNotAvailableError } from "@/lib/audio/constants";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -11,8 +11,9 @@ export async function GET(
   context: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await context.params;
-  if (!isAudioTopic(slug)) {
-    return NextResponse.json({ error: "audio_not_available" }, { status: 404 });
+  const unavailable = audioNotAvailableError(slug);
+  if (unavailable) {
+    return NextResponse.json({ error: unavailable }, { status: 404 });
   }
   const graph = await getTopicBySlug(slug);
   if (!graph) {

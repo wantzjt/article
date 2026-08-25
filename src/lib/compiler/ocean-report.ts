@@ -15,6 +15,20 @@ export type OceanMovedTopic = {
   lastVerifiedAt: string | null;
 };
 
+export const STATUS_PUBLIC_KEYS = [
+  "ok",
+  "model",
+  "maxDailyModelSpendUsd",
+  "hardStop",
+  "urls",
+  "claims",
+  "topics",
+  "whatMovedCount",
+  "whatMoved",
+  "spendTodayUsd",
+  "lastRunAt",
+] as const;
+
 export type OceanSummary = {
   urls: number;
   claims: number;
@@ -23,6 +37,31 @@ export type OceanSummary = {
   spendTodayUsd: number;
   lastRunAt: string | null;
 };
+
+export function publicStatusPayload(input: {
+  model: string;
+  maxDailyModelSpendUsd: number;
+  hardStop: string;
+  summary: OceanSummary;
+}) {
+  return {
+    ok: true as const,
+    model: input.model,
+    maxDailyModelSpendUsd: input.maxDailyModelSpendUsd,
+    hardStop: input.hardStop,
+    urls: input.summary.urls,
+    claims: input.summary.claims,
+    topics: input.summary.topics,
+    whatMovedCount: input.summary.whatMoved.length,
+    whatMoved: input.summary.whatMoved.slice(0, 12).map((row) => ({
+      slug: row.slug,
+      status: row.status,
+      lastMaterialChangeAt: row.lastMaterialChangeAt,
+    })),
+    spendTodayUsd: Number(input.summary.spendTodayUsd.toFixed(6)),
+    lastRunAt: input.summary.lastRunAt,
+  };
+}
 
 export type NightTopicResult = {
   at: string;

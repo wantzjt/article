@@ -43,3 +43,9 @@ export function robotsForStatus(status: TopicStatus): "index, follow" | "noindex
 export function shouldPublishBrief(changedAcceptedClaimCount: number): boolean {
   return changedAcceptedClaimCount >= BRIEF_MIN_CHANGED_CLAIMS;
 }
+
+/** Timeouts and empty-source exits must not demote an existing strong topic. */
+export function failClosedStatus(current: TopicStatus | undefined, next: TopicStatus): TopicStatus {
+  if (current === "strong") return "strong";
+  return next;
+}

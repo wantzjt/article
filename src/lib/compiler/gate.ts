@@ -30,6 +30,13 @@ export function gateCandidateClaim(claim: CandidateClaim): GateDecision {
   return { ok: true };
 }
 
+export function dropClaimsWithoutKnownSource<T extends { source_id: string }>(
+  claims: T[],
+  sourceIds: Set<string>,
+): T[] {
+  return claims.filter((claim) => sourceIds.has(claim.source_id));
+}
+
 export function excerptSupportsClaim(input: {
   claimText: string;
   excerpt: string;

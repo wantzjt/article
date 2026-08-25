@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gateCandidateClaim, excerptSupportsClaim } from "@/lib/compiler/gate";
+import { dropClaimsWithoutKnownSource, excerptSupportsClaim, gateCandidateClaim } from "@/lib/compiler/gate";
 
 describe("claim gate", () => {
   it("rejects a claim without a source id", () => {
@@ -36,6 +36,14 @@ describe("claim gate", () => {
       entities: ["GLM-5.3"],
     });
     expect(decision.ok).toBe(true);
+  });
+
+  it("drops claims that do not name a known SOURCE_ID", () => {
+    expect(
+      dropClaimsWithoutKnownSource([{ source_id: "a" }, { source_id: "ghost" }], new Set(["a"])).map(
+        (row) => row.source_id,
+      ),
+    ).toEqual(["a"]);
   });
 
   it("requires excerpt overlap", () => {

@@ -20,6 +20,19 @@ export function sourcesReadyForExtract(sources: SourceRecord[]): SourceRecord[] 
   return sources.filter((source) => source.evidenceExcerpt.trim().length >= MIN_EXTRACT_EXCERPT);
 }
 
+/** Reuse persisted sources only for this topic's official domains or already-linked ids. */
+export function cachedSourcesForTopic(
+  sources: SourceRecord[],
+  officialDomains: string[],
+  linkedSourceIds: Iterable<string> = [],
+): SourceRecord[] {
+  const official = new Set(officialDomains);
+  const linked = new Set(linkedSourceIds);
+  return sources.filter(
+    (source) => official.has(source.publisherDomain) || linked.has(source.id),
+  );
+}
+
 export function rankSourcesForExtract(
   sources: SourceRecord[],
   officialDomains: string[],
