@@ -201,6 +201,11 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
 const SOURCE_COLUMNS = 13;
 const SOURCE_CHUNK = 40;
 
+function utf8Safe(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  return value.replace(/\u0000/g, "");
+}
+
 export async function upsertSourcesToNeon(sources: SourceRecord[]): Promise<void> {
   if (sources.length === 0) return;
   const sql = db();
@@ -216,17 +221,17 @@ export async function upsertSourcesToNeon(sources: SourceRecord[]): Promise<void
       params.push(
         source.id,
         source.canonicalUrl,
-        source.title,
-        source.publisher,
-        source.publisherDomain,
-        source.author,
+        utf8Safe(source.title) ?? "",
+        utf8Safe(source.publisher) ?? "",
+        utf8Safe(source.publisherDomain) ?? "",
+        utf8Safe(source.author),
         source.publishedAt,
         source.retrievedAt,
         source.sourceType,
         source.primaryStatus,
         source.contentHash,
-        source.evidenceExcerpt,
-        JSON.stringify(source.metadata ?? {}),
+        utf8Safe(source.evidenceExcerpt) ?? "",
+        JSON.stringify(source.metadata ?? {}).replace(/\u0000/g, ""),
       );
     });
     await sql.query(

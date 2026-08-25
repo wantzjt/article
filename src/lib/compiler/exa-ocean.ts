@@ -5,7 +5,7 @@ import { contentHash } from "./hash";
 import { canonicalizeUrl } from "./urls";
 import type { DiscoveredSource } from "@/lib/gateway/exa";
 
-export type ExaOceanStopReason = "hard_stop" | "queue" | "signal";
+export type ExaOceanStopReason = "hard_stop" | "queue" | "signal" | "quota";
 
 export type ExaOceanTopicResult = {
   slug: string;
@@ -98,7 +98,7 @@ export function discoveredToSourceRecords(input: {
     if (seen.has(canonicalUrl)) continue;
     seen.add(canonicalUrl);
     urls.push(canonicalUrl);
-    const excerpt = (hit.highlights.join(" ") || "").slice(0, 2000);
+    const excerpt = (hit.highlights.join(" ") || "").replace(/\u0000/g, "").slice(0, 2000);
     const hash = contentHash([canonicalUrl, hit.title, excerpt]);
     const prior = input.existingByUrl.get(canonicalUrl);
     if (prior && prior.contentHash === hash) {

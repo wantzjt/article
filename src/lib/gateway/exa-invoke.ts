@@ -5,7 +5,7 @@ import { hitsFromExaOutput, type DiscoveredSource } from "./exa";
 
 const GATEWAY_LM = "https://ai-gateway.vercel.sh/v4/ai/language-model";
 
-export type ExaInvokeErrorKind = "rate_limit" | "http" | "empty" | "auth";
+export type ExaInvokeErrorKind = "rate_limit" | "http" | "empty" | "auth" | "quota";
 
 export type ExaInvokeResult = {
   query: string;
@@ -124,11 +124,13 @@ export async function invokeExaSearch(input: {
         };
       }
       if (!res.ok) {
+        const message = (await res.text()).slice(0, 400);
+        const quota = res.status === 402 || /quota_for_entity_exceeded|budget exceeded/i.test(message);
         return {
           query: input.query,
           hits: [],
           gatewayCostUsd: 0,
-          error: { kind: "http", status: res.status, message: (await res.text()).slice(0, 400) },
+          error: { kind: quota ? "quota" : "http", status: res.status, message },
         };
       }
       const json = (await res.json()) as Record<string, unknown>;

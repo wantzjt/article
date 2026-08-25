@@ -213,6 +213,7 @@ async function discoverTopic(slug: string, pass: number): Promise<ExaOceanTopicR
       hits: invoked.hits,
       gatewayCostUsd: invoked.gatewayCostUsd,
       rateLimit: invoked.error?.kind === "rate_limit",
+      quota: invoked.error?.kind === "quota",
       error: invoked.error?.message,
     };
   });
@@ -342,6 +343,10 @@ async function main() {
           progress.rateLimits += result.errors.filter((row) => /429|rate/i.test(row)).length;
           progress.errors.push(...result.errors);
           if (result.createdStub) progress.stubsCreated.push(slug);
+          if (result.errors.some((row) => /budget exceeded|quota_for_entity/i.test(row))) {
+            progress.stopReason = "quota";
+            signaled = true;
+          }
           log({
             event: "topic_ok",
             slug,
