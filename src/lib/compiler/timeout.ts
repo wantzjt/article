@@ -1,5 +1,6 @@
 export const EXTRACT_STAGE_TIMEOUT_MS = 120_000;
 export const VERIFY_STAGE_TIMEOUT_MS = 120_000;
+export const VERIFY_CALL_TIMEOUT_MS = 120_000;
 export const CLUSTER_STAGE_TIMEOUT_MS = 90_000;
 
 export class StageTimeoutError extends Error {

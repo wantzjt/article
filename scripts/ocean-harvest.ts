@@ -97,7 +97,8 @@ async function main() {
     }
 
     const prior = progress.results[entity.slug];
-    if (prior) continue;
+    if (prior?.ok) continue;
+    if ((prior?.claims ?? 0) > 0) continue;
 
     let spend = await modelSpendTodayUsd();
     if (spend >= MAX_DAILY_MODEL_SPEND_USD) {
