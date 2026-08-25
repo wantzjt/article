@@ -77,6 +77,11 @@ async function saveProgress(progress: NightProgress): Promise<void> {
   await writeFile(PROGRESS_PATH, JSON.stringify(progress, null, 2));
 }
 
+async function persist(progress: NightProgress): Promise<NightReport> {
+  await saveProgress(progress);
+  return writeReport(progress);
+}
+
 async function snapshot(slug: string) {
   const topic = await getTopicBySlug(slug);
   const accepted = topic?.claims.filter((claim) => claim.status !== "rejected") ?? [];
@@ -160,6 +165,7 @@ async function main() {
     queued: queue.length,
     resumed: Object.keys(progress.results).length,
   });
+  await persist(progress);
 
   for (const [index, slug] of queue.entries()) {
     const remaining = queue.length - index;
@@ -175,6 +181,7 @@ async function main() {
     if (stop) {
       progress.stopReason = stop;
       log({ event: "stop", reason: stop, spend, remaining });
+      await persist(progress);
       break;
     }
 
@@ -196,7 +203,7 @@ async function main() {
         claimsDelta: 0,
       };
       log({ event: "skip", slug, reason: skip, ...live });
-      await saveProgress(progress);
+      await persist(progress);
       continue;
     }
 
@@ -244,12 +251,11 @@ async function main() {
       });
       if (error instanceof ModelSpendCapError) {
         progress.stopReason = "spend";
-        await saveProgress(progress);
+        await persist(progress);
         break;
       }
     }
-    await saveProgress(progress);
-    await writeReport(progress);
+    await persist(progress);
   }
 
   if (!progress.stopReason) {
@@ -263,8 +269,7 @@ async function main() {
       hardStopMs: HARD_STOP_MS,
     }) ?? "queue";
   }
-  await saveProgress(progress);
-  const report = await writeReport(progress);
+  const report = await persist(progress);
   log({
     event: "done",
     stopReason: progress.stopReason,

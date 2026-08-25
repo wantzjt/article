@@ -20,12 +20,17 @@ export const STATUS_PUBLIC_KEYS = [
   "model",
   "maxDailyModelSpendUsd",
   "hardStop",
+  "hardStopAt",
   "urls",
   "claims",
   "topics",
   "whatMovedCount",
   "whatMoved",
   "spendTodayUsd",
+  "spendUsd",
+  "spendCapUsd",
+  "runner",
+  "lastError",
   "lastRunAt",
 ] as const;
 
@@ -36,19 +41,49 @@ export type OceanSummary = {
   whatMoved: OceanMovedTopic[];
   spendTodayUsd: number;
   lastRunAt: string | null;
+  lastError: string | null;
 };
+
+export const NIGHT_RUNNER_STALE_MS = 20 * 60_000;
+
+export function safeLastError(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/eyJ[A-Za-z0-9._-]{10,}/g, "[redacted]")
+    .replace(/postgres(?:ql)?:\/\/\S+/gi, "[redacted]")
+    .replace(/Bearer\s+\S+/gi, "[redacted]")
+    .replace(/sk-[A-Za-z0-9]{10,}/g, "[redacted]")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.slice(0, 240) || null;
+}
+
+export function inferRunner(
+  lastRunAt: string | null,
+  now = new Date(),
+  staleMs = NIGHT_RUNNER_STALE_MS,
+): "night" | "idle" {
+  if (!lastRunAt) return "idle";
+  const at = Date.parse(lastRunAt);
+  if (!Number.isFinite(at)) return "idle";
+  return now.getTime() - at <= staleMs ? "night" : "idle";
+}
 
 export function publicStatusPayload(input: {
   model: string;
   maxDailyModelSpendUsd: number;
+  spendCapUsd: number;
   hardStop: string;
   summary: OceanSummary;
+  now?: Date;
 }) {
+  const spendUsd = Number(input.summary.spendTodayUsd.toFixed(6));
   return {
     ok: true as const,
     model: input.model,
     maxDailyModelSpendUsd: input.maxDailyModelSpendUsd,
     hardStop: input.hardStop,
+    hardStopAt: input.hardStop,
     urls: input.summary.urls,
     claims: input.summary.claims,
     topics: input.summary.topics,
@@ -58,7 +93,11 @@ export function publicStatusPayload(input: {
       status: row.status,
       lastMaterialChangeAt: row.lastMaterialChangeAt,
     })),
-    spendTodayUsd: Number(input.summary.spendTodayUsd.toFixed(6)),
+    spendTodayUsd: spendUsd,
+    spendUsd,
+    spendCapUsd: input.spendCapUsd,
+    runner: inferRunner(input.summary.lastRunAt, input.now),
+    lastError: input.summary.lastError,
     lastRunAt: input.summary.lastRunAt,
   };
 }
@@ -119,6 +158,10 @@ export function summarizeOcean(graph: GraphSnapshot, now = new Date()): OceanSum
       lastVerifiedAt: topic.lastVerifiedAt,
     }));
   const lastRunAt = graph.runs.reduce((latest, run) => (run.updatedAt > latest ? run.updatedAt : latest), "");
+  const lastFailed = [...graph.runs]
+    .filter((run) => run.status === "failed" && run.error)
+    .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
+    .at(-1);
   return {
     urls: graph.sources.length,
     claims: graph.claims.filter((claim) => claim.status !== "rejected").length,
@@ -126,6 +169,7 @@ export function summarizeOcean(graph: GraphSnapshot, now = new Date()): OceanSum
     whatMoved,
     spendTodayUsd,
     lastRunAt: lastRunAt || null,
+    lastError: safeLastError(lastFailed?.error),
   };
 }
 

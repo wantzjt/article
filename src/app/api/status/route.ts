@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PRIMARY_MODEL, MAX_DAILY_MODEL_SPEND_USD, OCEAN_HARD_STOP } from "@/lib/env";
+import { NIGHT_SPEND_CEILING_USD } from "@/lib/compiler/night-policy";
 import { publicStatusPayload, summarizeOcean } from "@/lib/compiler/ocean-report";
 import { getGraph } from "@/lib/store/json-store";
 
@@ -12,6 +13,7 @@ export async function GET() {
     publicStatusPayload({
       model: PRIMARY_MODEL,
       maxDailyModelSpendUsd: MAX_DAILY_MODEL_SPEND_USD,
+      spendCapUsd: NIGHT_SPEND_CEILING_USD,
       hardStop: OCEAN_HARD_STOP,
       summary: summarizeOcean(graph),
     }),

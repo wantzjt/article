@@ -37,7 +37,18 @@ Night runner (bounded overnight compile — do not use `npm run ocean` for the d
 npm run ocean:night
 ```
 
-Stops at **06:00 America/Chicago**, **$6.50** model spend today, empty queue, or Exa hard stop (`2026-08-30 23:59 CT`). Compile stays `PRIMARY_MODEL=zai/glm-5.2`. No silent 5.3 fallback. No `EXA_API_KEY`. Resume-safe via `data/ocean-night-progress.json`. Writes `artifacts/ocean-night-report.json` and `artifacts/OCEAN_REPORT.md`. Public snapshot: `GET /api/status`.
+Stops at **06:00 America/Chicago**, **$6.50** model spend today, empty queue, or Exa hard stop (`2026-08-30 23:59 CT`). Compile stays `PRIMARY_MODEL=zai/glm-5.2`. No silent 5.3 fallback. No `EXA_API_KEY`. Resume-safe via `data/ocean-night-progress.json`. Writes `artifacts/ocean-night-report.json` and `artifacts/OCEAN_REPORT.md` on each topic finish and on stop. Public snapshot: `GET /api/status`.
+
+## Morning checklist
+
+Do this in order. Trust `/api/status` and the report files; do not scrape harvest logs.
+
+1. [Explore](https://article-gamma-rose.vercel.app/) — count What Moved
+2. [`/api/status`](https://article-gamma-rose.vercel.app/api/status) — `topics.strong` / `provisional` / `stub`, `claims`, `urls`, `whatMoved`, `model`, `spendUsd`, `spendCapUsd`, `hardStopAt`, `runner`, `lastError`
+3. [GLM-5.3 Play](https://article-gamma-rose.vercel.app/topic/glm-5-3) — cache hit only; other slugs have no Play
+4. [Anthropic](https://article-gamma-rose.vercel.app/topic/anthropic)
+5. [OpenAI](https://article-gamma-rose.vercel.app/topic/openai)
+6. Local: `artifacts/OCEAN_REPORT.md` and `artifacts/ocean-night-report.json`
 
 Admin HTTP trigger (secret in `ADMIN_SECRET`):
 

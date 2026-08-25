@@ -292,6 +292,7 @@ describe("/api/status shape is public and secret-free", () => {
     const payload = publicStatusPayload({
       model: "zai/glm-5.2",
       maxDailyModelSpendUsd: 8,
+      spendCapUsd: 6.5,
       hardStop: "2026-08-30T23:59:00-05:00",
       summary: summarizeOcean(emptyGraph()),
     });
@@ -300,6 +301,11 @@ describe("/api/status shape is public and secret-free", () => {
     expect(blob).not.toMatch(/DATABASE_URL|ADMIN_SECRET|VERCEL_OIDC|EXA_API_KEY|BLOB_READ_WRITE|eyJ[A-Za-z0-9_-]{20,}/);
     expect(payload.ok).toBe(true);
     expect(payload.topics).toEqual({ strong: 0, provisional: 0, stub: 0 });
+    expect(payload.spendUsd).toBe(0);
+    expect(payload.spendCapUsd).toBe(6.5);
+    expect(payload.hardStopAt).toBe("2026-08-30T23:59:00-05:00");
+    expect(payload.runner).toBe("idle");
+    expect(payload.lastError).toBeNull();
   });
 });
 

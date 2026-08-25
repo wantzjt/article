@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatNightReportMarkdown, summarizeOcean } from "@/lib/compiler/ocean-report";
+import {
+  formatNightReportMarkdown,
+  inferRunner,
+  safeLastError,
+  summarizeOcean,
+} from "@/lib/compiler/ocean-report";
 import { emptyGraph } from "@/lib/store/graph";
 
 describe("ocean summary", () => {
@@ -77,6 +82,12 @@ describe("ocean summary", () => {
     expect(summary.topics).toEqual({ strong: 1, provisional: 1, stub: 0 });
     expect(summary.whatMoved.map((row) => row.slug)).toEqual(["openai", "glm-5-3"]);
     expect(summary.spendTodayUsd).toBeCloseTo(0.01);
+    expect(summary.lastError).toBeNull();
+    expect(inferRunner(new Date().toISOString())).toBe("night");
+    expect(inferRunner("2026-08-01T00:00:00.000Z", new Date("2026-08-25T00:00:00.000Z"))).toBe("idle");
+    expect(safeLastError("stage timeout: extract after 120000ms token eyJhbGciOiJIUz.payload.sig")).toBe(
+      "stage timeout: extract after 120000ms token [redacted]",
+    );
     const md = formatNightReportMarkdown({
       kind: "ocean-night",
       startedAt: "t0",
