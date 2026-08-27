@@ -1,16 +1,27 @@
 import Link from "next/link";
-import { brand } from "@/lib/brand";
 import { StatusChip } from "@/components/status-chip";
-import { changeLine, formatCount, formatTime, warehouseCoverage, warehouseInventory } from "@/lib/render/topic-view";
+import { topicKind } from "@/lib/compiler/taxonomy";
+import {
+  changeLine,
+  formatCount,
+  formatRelative,
+  formatTime,
+  movedToday,
+  pulseTopics,
+  radarTopics,
+  topicIndex,
+  warehouseCoverage,
+} from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const graph = await getGraph();
-  const topics = [...graph.topics].sort((a, b) =>
-    (b.lastMaterialChangeAt ?? b.updatedAt).localeCompare(a.lastMaterialChangeAt ?? a.updatedAt),
-  );
+  const now = new Date();
+  const moved = [...graph.topics]
+    .filter((topic) => topic.lastMaterialChangeAt)
+    .sort((a, b) => (b.lastMaterialChangeAt ?? "").localeCompare(a.lastMaterialChangeAt ?? ""));
   const latestByTopic = new Map<string, { createdAt: string; changeSummary: string }>();
   for (const version of graph.versions) {
     const prev = latestByTopic.get(version.topicId);
@@ -32,36 +43,32 @@ export default async function HomePage() {
       });
     }
   }
-  const moved = topics.filter((topic) => topic.lastMaterialChangeAt);
+  const pulse = pulseTopics(moved);
+  const radar = radarTopics(graph, now);
   const coverage = warehouseCoverage(graph);
-  const inventory = warehouseInventory(graph);
-  const briefs = graph.briefs
-    .filter((brief) => brief.status === "published")
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .slice(0, 3);
+  const index = topicIndex(graph);
 
   return (
     <div className="space-y-10">
-      <section className="space-y-2">
-        <p className="kicker">Explore</p>
-        <h1 className="display">{brand.tagline}</h1>
-      </section>
-
       <section>
-        <h2 className="kicker">What moved</h2>
-        {moved.length === 0 ? (
+        <h2 className="kicker">Pulse</h2>
+        {pulse.visible.length === 0 ? (
           <p className="mt-4 text-[0.9375rem] leading-6 text-ink-quiet">
             No material changes in the recent window.
           </p>
         ) : (
           <ul className="mt-4">
-            {moved.map((topic) => {
+            {pulse.visible.map((topic) => {
               const change = changeLine({
                 briefHeadline: latestBriefByTopic.get(topic.id)?.headline,
                 changeSummary: latestByTopic.get(topic.id)?.changeSummary,
               });
+              const today = movedToday(topic.lastMaterialChangeAt, now);
               return (
-                <li key={topic.id} className="border-t border-rule py-3 first:border-t-0">
+                <li
+                  key={topic.id}
+                  className={`border-t border-rule py-3 first:border-t-0 pl-3 ${today ? "border-l-2 border-l-signal" : "border-l-2 border-l-rule"}`}
+                >
                   <div className="flex items-baseline justify-between gap-3">
                     <Link
                       href={`/topic/${topic.slug}`}
@@ -71,8 +78,12 @@ export default async function HomePage() {
                     </Link>
                     <StatusChip status={topic.status} />
                   </div>
+                  <p className="meta mt-1">{topicKind(topic)}</p>
                   <p className="mt-1 flex gap-2 text-[0.9375rem] leading-6 text-ink">
-                    <span className="mt-[0.55rem] size-1.5 shrink-0 rounded-full bg-signal" aria-hidden />
+                    <span
+                      className={`mt-[0.55rem] size-1.5 shrink-0 rounded-full ${today ? "bg-signal" : "bg-rule"}`}
+                      aria-hidden
+                    />
                     <span>{change}</span>
                   </p>
                   <p className="meta mt-1">Verified {formatTime(topic.lastVerifiedAt)}</p>
@@ -81,30 +92,30 @@ export default async function HomePage() {
             })}
           </ul>
         )}
+        {pulse.rest.length > 0 ? (
+          <details className="sources mt-2">
+            <summary>More movement ({pulse.rest.length})</summary>
+            <ul className="mt-1 pb-3">
+              {pulse.rest.map((topic) => (
+                <li key={topic.id} className="border-t border-rule py-2 first:border-t-0">
+                  <Link href={`/topic/${topic.slug}`} className="text-[0.8125rem] leading-5 hover:underline">
+                    {topic.name}
+                  </Link>
+                  <span className="meta ml-2">{topicKind(topic)}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </section>
 
       <section>
-        <h2 className="kicker">Warehouse</h2>
-        <p className="meta mt-3">
-          {formatCount(coverage.urls)} URLs
-          {" · "}
-          {formatCount(coverage.topics)} topics
-          {" · "}
-          {coverage.strong} strong
-          {" · "}
-          {coverage.provisional} provisional
-          {" · "}
-          {coverage.stub} stub
-          {coverage.people ? ` · ${coverage.people} people` : ""}
-        </p>
-        <p className="meta mt-1">Last source {formatTime(coverage.lastRetrievedAt)}</p>
-      </section>
-
-      {inventory.length > 0 ? (
-        <section>
-          <h2 className="kicker">Coverage</h2>
+        <h2 className="kicker">Radar</h2>
+        {radar.length === 0 ? (
+          <p className="mt-4 text-[0.9375rem] leading-6 text-ink-quiet">No banked sources yet.</p>
+        ) : (
           <ul className="mt-4">
-            {inventory.map((row) => (
+            {radar.map((row) => (
               <li key={row.slug} className="border-t border-rule py-3 first:border-t-0">
                 <div className="flex items-baseline justify-between gap-3">
                   <Link
@@ -117,63 +128,44 @@ export default async function HomePage() {
                 </div>
                 <p className="meta mt-1">
                   {formatCount(row.sourceCount)} sources
-                  {row.banked ? " · stub — sources banked" : row.status === "stub" ? " · stub" : ` · ${row.status}`}
+                  {" · updated "}
+                  {formatRelative(row.lastRetrievedAt, now)}
                 </p>
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
-
-      {briefs.length > 0 ? (
-        <section>
-          <h2 className="kicker">Latest briefs</h2>
-          <ul className="mt-4">
-            {briefs.map((brief) => {
-              const topic = graph.topics.find((row) => row.id === brief.topicId);
-              return (
-                <li key={brief.id} className="border-t border-rule py-3 first:border-t-0">
-                  <Link
-                    href={`/topic/${topic?.slug ?? ""}`}
-                    className="font-serif text-[1.0625rem] leading-6 tracking-tight hover:underline"
-                  >
-                    {brief.headline}
-                  </Link>
-                  <p className="meta mt-1">
-                    {topic?.name ?? "Topic"}
-                    {" · "}
-                    {brief.publishedAt.slice(0, 10)}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
+        )}
+      </section>
 
       <section>
-        <h2 className="kicker">All topics</h2>
-        <ul className="mt-4">
-          {topics.map((topic) => {
-            const stub = topic.status === "stub";
-            return (
-              <li
-                key={topic.id}
-                className={`flex items-baseline justify-between gap-3 border-t border-rule py-1.5 first:border-t-0 ${stub ? "text-ink-quiet" : ""}`}
-              >
-                <Link
-                  href={`/topic/${topic.slug}`}
-                  className={`text-[0.8125rem] leading-5 hover:underline ${stub ? "" : "text-ink"}`}
-                >
-                  {topic.name}
-                </Link>
-                {stub || topic.status === "provisional" ? (
-                  <StatusChip status={topic.status} />
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+        <h2 className="kicker">Index</h2>
+        <details className="sources mt-2">
+          <summary>
+            {formatCount(coverage.topics)} topics
+            {coverage.people ? ` · ${coverage.people} people` : ""}
+            {" · "}
+            {formatCount(coverage.urls)} sources
+          </summary>
+          <div className="mt-3 space-y-4 pb-3">
+            {index.map((group) => (
+              <div key={group.kind}>
+                <p className="kicker">{group.kind}</p>
+                <ul className="mt-1">
+                  {group.topics.map((topic) => (
+                    <li key={topic.slug} className="py-0.5">
+                      <Link
+                        href={`/topic/${topic.slug}`}
+                        className={`text-[0.8125rem] leading-5 hover:underline ${topic.status === "stub" ? "text-ink-quiet" : "text-ink"}`}
+                      >
+                        {topic.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </details>
       </section>
     </div>
   );

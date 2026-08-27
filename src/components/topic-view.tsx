@@ -11,11 +11,11 @@ import {
   formatDate,
   formatTime,
   lastRetrievedAt,
+  latestEvidence,
   namesAlign,
   personIdentity,
   shortExcerpt,
   warehouseSourceList,
-  WAREHOUSE_SOURCE_PAGE_LIMIT,
 } from "@/lib/render/topic-view";
 
 const SUPPORT_LABEL = {
@@ -150,41 +150,50 @@ export function TopicView({
     identity && (!identity.name || namesAlign(identity.name, graph.topic.name)),
   );
   const kind = topicKind(graph.topic);
-  const banked = warehouseSourceList(graph.sources);
+  const recent = latestEvidence(graph.sources);
+  const remainder = warehouseSourceList(graph.sources, graph.sources.length).slice(recent.length);
   const lastSource = lastRetrievedAt(graph.sources);
-  const identityBits = identityFits && identity
-    ? [identity.role, identity.company, identity.location].filter(Boolean)
-    : [];
+  const affiliation =
+    identityFits && identity ? [identity.role, identity.company].filter(Boolean).join(" · ") : "";
 
   return (
     <div className="space-y-8">
       <header className="space-y-3">
-        <p className="kicker">{kind}</p>
+        <p className="kicker">
+          Dossier
+          {" · "}
+          {kind}
+        </p>
         <h1 className={stub && graph.sources.length === 0 ? "font-serif text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
           {graph.topic.name}
         </h1>
-        {identityBits.length > 0 ? (
-          <p className="meta">{identityBits.join(" · ")}</p>
-        ) : (
-          <p className={`max-w-prose text-[0.9375rem] leading-6 ${stub ? "text-ink-quiet" : ""}`}>
-            {displayDek(graph.topic.description)}
-          </p>
-        )}
+        {affiliation ? (
+          <p className="meta">{affiliation}</p>
+        ) : hasClaims ? (
+          <p className="max-w-prose text-[0.9375rem] leading-6">{displayDek(graph.topic.description)}</p>
+        ) : null}
         <div className="space-y-2">
           <p className="meta">
-            Last verified {formatTime(graph.topic.lastVerifiedAt)}
+            <StatusChip status={graph.topic.status} />
+            {" · "}
+            {formatCount(accepted.length)} claims
             {" · "}
             {formatCount(graph.sources.length)} sources
             {" · "}
-            {accepted.length} claims
-            {" · "}
-            <StatusChip status={graph.topic.status} />
+            last verified {formatTime(graph.topic.lastVerifiedAt)}
           </p>
-          {indexed ? null : (
+          {hasClaims ? null : (
             <p className="meta">
-              This topic is {stub ? "a stub" : graph.topic.status} and is not indexed.
+              {graph.sources.length > 0
+                ? "Sources banked · claims not compiled"
+                : stub
+                  ? "Stub · no sources banked yet"
+                  : `${graph.topic.status} · no compiled claims`}
             </p>
           )}
+          {indexed ? null : hasClaims ? (
+            <p className="meta">This topic is {graph.topic.status} and is not indexed.</p>
+          ) : null}
           {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
         </div>
       </header>
@@ -229,51 +238,60 @@ export function TopicView({
           </Section>
         </>
       ) : (
-        <Section id="sources" title="Sources">
+        <Section id="latest-evidence" title="Latest evidence">
           {graph.sources.length === 0 ? (
-            <Empty>
-              {stub
-                ? "No compiled claims yet. This topic is a stub."
-                : "No sources banked on this topic."}
-            </Empty>
+            <Empty>No sources banked on this topic.</Empty>
           ) : (
             <div>
-              <p className="meta">
-                {formatCount(graph.sources.length)} sources
-                {" · "}
-                last retrieved {formatTime(lastSource)}
-                {stub ? " · stub — sources banked" : ""}
-              </p>
-              <details className="sources mt-3">
-                <summary>
-                  {graph.sources.length > WAREHOUSE_SOURCE_PAGE_LIMIT
-                    ? `Sources (${WAREHOUSE_SOURCE_PAGE_LIMIT} of ${formatCount(graph.sources.length)})`
-                    : "Sources"}
-                </summary>
-                <ul className="mt-1 space-y-3 pb-3">
-                  {banked.map((source) => (
-                    <li key={source.id} className="text-[0.8125rem] leading-5">
-                      <p className="font-serif text-[0.9375rem] leading-6 text-ink">{source.title}</p>
-                      <p className="font-mono text-[12px]/[16px] text-ink">
-                        <a
-                          className="underline decoration-rule underline-offset-2 hover:decoration-ink"
-                          href={source.canonicalUrl}
-                          rel="nofollow noopener"
-                        >
-                          {source.publisherDomain}
-                        </a>
-                        {" · "}
-                        {formatDate(source.publishedAt ?? source.retrievedAt)}
+              <p className="meta">Last retrieved {formatTime(lastSource)}</p>
+              <ul className="mt-3">
+                {recent.map((source) => (
+                  <li key={source.id} className="border-t border-rule py-3 first:border-t-0">
+                    <p className="font-serif text-[1.0625rem] leading-6 tracking-tight text-ink">{source.title}</p>
+                    <p className="meta mt-1">
+                      <a
+                        className="underline decoration-rule underline-offset-2 hover:decoration-ink"
+                        href={source.canonicalUrl}
+                        rel="nofollow noopener"
+                      >
+                        {source.publisherDomain}
+                      </a>
+                      {" · "}
+                      {formatDate(source.publishedAt ?? source.retrievedAt)}
+                    </p>
+                    {source.evidenceExcerpt ? (
+                      <p className="mt-1 text-[0.8125rem] leading-5 text-ink-quiet">
+                        {shortExcerpt(source.evidenceExcerpt, 140)}
                       </p>
-                      {source.evidenceExcerpt ? (
-                        <blockquote className="mt-1 text-ink-quiet">
-                          {shortExcerpt(source.evidenceExcerpt)}
-                        </blockquote>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </details>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              {remainder.length > 0 ? (
+                <details className="sources mt-2">
+                  <summary>
+                    All sources ({formatCount(graph.sources.length)})
+                  </summary>
+                  <ul className="mt-1 space-y-3 pb-3">
+                    {remainder.map((source) => (
+                      <li key={source.id} className="text-[0.8125rem] leading-5">
+                        <p className="text-ink">{source.title}</p>
+                        <p className="font-mono text-[12px]/[16px] text-ink">
+                          <a
+                            className="underline decoration-rule underline-offset-2 hover:decoration-ink"
+                            href={source.canonicalUrl}
+                            rel="nofollow noopener"
+                          >
+                            {source.publisherDomain}
+                          </a>
+                          {" · "}
+                          {formatDate(source.publishedAt ?? source.retrievedAt)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </div>
           )}
         </Section>

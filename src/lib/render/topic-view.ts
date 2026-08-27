@@ -207,12 +207,110 @@ export function personIdentity(meta: TopicEntityMeta | null | undefined): Person
   };
 }
 
+export const PULSE_LIMIT = 8;
+export const RADAR_LIMIT = 12;
+export const LATEST_EVIDENCE_LIMIT = 5;
 export const WAREHOUSE_SOURCE_PAGE_LIMIT = 40;
 
 export function warehouseSourceList(sources: SourceRecord[], limit = WAREHOUSE_SOURCE_PAGE_LIMIT): SourceRecord[] {
   return [...sources]
     .sort((a, b) => b.retrievedAt.localeCompare(a.retrievedAt) || (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""))
     .slice(0, limit);
+}
+
+export function latestEvidence(sources: SourceRecord[], limit = LATEST_EVIDENCE_LIMIT): SourceRecord[] {
+  return warehouseSourceList(sources, limit);
+}
+
+export function movedToday(iso: string | null, now = new Date()): boolean {
+  if (!iso) return false;
+  return iso.slice(0, 10) === now.toISOString().slice(0, 10);
+}
+
+export function formatRelative(iso: string | null, now = new Date()): string {
+  if (!iso) return "—";
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return "—";
+  const hours = Math.max(0, Math.floor((now.getTime() - then) / 3_600_000));
+  if (hours < 1) return "just now";
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return `${days}d ago`;
+  return formatDate(iso);
+}
+
+export function lastRetrievedByTopicId(sources: SourceRecord[]): Map<string, string> {
+  const latest = new Map<string, string>();
+  for (const source of sources) {
+    const topicId = topicIdFromSource(source);
+    if (!topicId) continue;
+    const prev = latest.get(topicId);
+    if (!prev || source.retrievedAt > prev) latest.set(topicId, source.retrievedAt);
+  }
+  return latest;
+}
+
+export type RadarRow = {
+  slug: string;
+  name: string;
+  kind: string;
+  status: TopicRecord["status"];
+  sourceCount: number;
+  lastRetrievedAt: string | null;
+  score: number;
+};
+
+/** Recency × source count. Radar is a signal strip, not a dump. */
+export function radarTopics(graph: GraphSnapshot, now = new Date(), limit = RADAR_LIMIT): RadarRow[] {
+  const counts = sourceCountsByTopicId(graph.sources);
+  const retrieved = lastRetrievedByTopicId(graph.sources);
+  const nowMs = now.getTime();
+  const rows: RadarRow[] = [];
+  for (const topic of graph.topics) {
+    const sourceCount = counts.get(topic.id) ?? 0;
+    if (sourceCount <= 0) continue;
+    const lastRetrievedAt = retrieved.get(topic.id) ?? null;
+    const then = lastRetrievedAt ? Date.parse(lastRetrievedAt) : 0;
+    const hours = Number.isFinite(then) && then > 0 ? Math.max(1, (nowMs - then) / 3_600_000) : 24 * 30;
+    const score = sourceCount * (1 / (1 + hours / 24));
+    rows.push({
+      slug: topic.slug,
+      name: topic.name,
+      kind: topicKind(topic),
+      status: topic.status,
+      sourceCount,
+      lastRetrievedAt,
+      score,
+    });
+  }
+  return rows.sort((a, b) => b.score - a.score || b.sourceCount - a.sourceCount || a.name.localeCompare(b.name)).slice(0, limit);
+}
+
+export function pulseTopics<T>(moved: T[], limit = PULSE_LIMIT): { visible: T[]; rest: T[] } {
+  return { visible: moved.slice(0, limit), rest: moved.slice(limit) };
+}
+
+export type IndexGroup = { kind: string; topics: Array<{ slug: string; name: string; status: TopicRecord["status"] }> };
+
+const KIND_ORDER = ["person", "company", "product", "model", "policy", "standard", "event", "concept"];
+
+export function topicIndex(graph: GraphSnapshot): IndexGroup[] {
+  const buckets = new Map<string, IndexGroup["topics"]>();
+  for (const topic of graph.topics) {
+    const kind = topicKind(topic);
+    const list = buckets.get(kind) ?? [];
+    list.push({ slug: topic.slug, name: topic.name, status: topic.status });
+    buckets.set(kind, list);
+  }
+  const kinds = [...buckets.keys()].sort((a, b) => {
+    const ai = KIND_ORDER.indexOf(a);
+    const bi = KIND_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || a.localeCompare(b);
+  });
+  return kinds.map((kind) => ({
+    kind,
+    topics: (buckets.get(kind) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
+  }));
 }
 
 export function evidenceLabel(graph: TopicGraph, claimId: string): string {

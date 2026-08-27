@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { assembleTopic, emptyGraph, topicIdFromSource } from "@/lib/store/graph";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
+  latestEvidence,
   namesAlign,
   personIdentity,
+  pulseTopics,
+  radarTopics,
   warehouseCoverage,
-  warehouseInventory,
-  warehouseSourceList,
 } from "@/lib/render/topic-view";
 import { glm53Fixture } from "@/lib/fixture/glm-5-3";
 import { playMeta } from "@/lib/audio/brief";
@@ -103,68 +106,64 @@ describe("person identity from entity_meta", () => {
   });
 });
 
-describe("explore coverage", () => {
-  it("counts URLs and lists person plus source-rich stubs", () => {
+describe("pulse radar index", () => {
+  it("caps pulse at 8 and radar at 12, ranked by recency times source count", () => {
     const graph = emptyGraph();
-    const person: TopicRecord = {
-      id: "topic_ann-miura-ko",
-      slug: "ann-miura-ko",
-      name: "Ann Miura-Ko",
-      entityType: "investor",
-      kind: "person",
-      description: "Partner at Floodgate.",
-      aliases: [],
-      officialDomains: ["floodgate.com"],
-      status: "stub",
-      createdAt: "t",
-      updatedAt: "t",
-      lastVerifiedAt: null,
-      lastMaterialChangeAt: null,
-    };
-    const stub: TopicRecord = {
-      id: "topic_openai",
-      slug: "openai",
-      name: "OpenAI",
-      entityType: "lab",
-      description: "Lab.",
-      aliases: [],
-      officialDomains: ["openai.com"],
-      status: "stub",
-      createdAt: "t",
-      updatedAt: "t",
-      lastVerifiedAt: null,
-      lastMaterialChangeAt: null,
-    };
-    graph.topics.push(person, stub);
-    graph.sources.push(
-      source({
-        id: "p1",
-        canonicalUrl: "https://floodgate.com/ann",
-        retrievedAt: "2026-08-25T19:50:00.000Z",
-        metadata: { topic_id: person.id },
-      }),
-      source({
-        id: "o1",
-        canonicalUrl: "https://openai.com/index/a",
-        retrievedAt: "2026-08-25T18:00:00.000Z",
-        metadata: { topic_id: stub.id },
-      }),
-      source({
-        id: "o2",
-        canonicalUrl: "https://openai.com/index/b",
-        retrievedAt: "2026-08-25T18:01:00.000Z",
-        metadata: { topicId: stub.id },
-      }),
-    );
-    const coverage = warehouseCoverage(graph);
-    expect(coverage.urls).toBe(3);
-    expect(coverage.stub).toBe(2);
-    expect(coverage.people).toBe(1);
-    expect(coverage.lastRetrievedAt).toBe("2026-08-25T19:50:00.000Z");
-    const inventory = warehouseInventory(graph);
-    expect(inventory[0]?.slug).toBe("ann-miura-ko");
-    expect(inventory[0]?.banked).toBe(true);
-    expect(inventory.some((row) => row.slug === "openai" && row.sourceCount === 2)).toBe(true);
-    expect(warehouseSourceList(graph.sources, 1)).toHaveLength(1);
+    const now = new Date("2026-08-26T12:00:00.000Z");
+    for (let i = 0; i < 14; i += 1) {
+      graph.topics.push({
+        id: `topic_${i}`,
+        slug: `t-${i}`,
+        name: `Topic ${i}`,
+        entityType: i % 2 === 0 ? "lab" : "investor",
+        kind: i % 2 === 0 ? "company" : "person",
+        description: "Seed.",
+        aliases: [],
+        officialDomains: [],
+        status: "stub",
+        createdAt: "t",
+        updatedAt: "t",
+        lastVerifiedAt: null,
+        lastMaterialChangeAt: `2026-08-2${i < 10 ? "5" : "4"}T0${i % 9}:00:00.000Z`,
+      });
+      const n = i === 0 ? 10 : 3;
+      for (let s = 0; s < n; s += 1) {
+        graph.sources.push(
+          source({
+            id: `s-${i}-${s}`,
+            canonicalUrl: `https://example.com/${i}/${s}`,
+            retrievedAt: i === 0 ? "2026-08-26T11:00:00.000Z" : "2026-08-01T00:00:00.000Z",
+            metadata: { topic_id: `topic_${i}` },
+          }),
+        );
+      }
+    }
+    const moved = graph.topics.filter((row) => row.lastMaterialChangeAt);
+    const pulse = pulseTopics(moved);
+    expect(pulse.visible).toHaveLength(8);
+    expect(pulse.rest.length).toBeGreaterThan(0);
+    const radar = radarTopics(graph, now);
+    expect(radar.length).toBeLessThanOrEqual(12);
+    expect(radar[0]?.slug).toBe("t-0");
+    expect(radar.some((row) => row.kind === "person")).toBe(true);
+    expect(radar.some((row) => row.kind === "company")).toBe(true);
+    expect(latestEvidence(graph.sources, 5).length).toBeLessThanOrEqual(5);
+    expect(warehouseCoverage(graph).urls).toBe(graph.sources.length);
+  });
+
+  it("explore is pulse/radar/index, not a coverage dump", () => {
+    const home = readFileSync(path.join(process.cwd(), "src/app/page.tsx"), "utf8");
+    const dossier = readFileSync(path.join(process.cwd(), "src/components/topic-view.tsx"), "utf8");
+    expect(home).toMatch(/Pulse/);
+    expect(home).toMatch(/Radar/);
+    expect(home).toMatch(/Index/);
+    expect(home).not.toMatch(/>Coverage</);
+    expect(home).not.toMatch(/All topics/);
+    expect(home).not.toMatch(/stub — sources banked/);
+    expect(dossier).toMatch(/Latest evidence/);
+    expect(dossier).toMatch(/All sources/);
+    expect(dossier).not.toMatch(/claimText: source/);
+    expect(isAudioTopic("glm-5-3")).toBe(true);
+    expect(isAudioTopic("huggingface")).toBe(false);
   });
 });

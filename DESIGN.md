@@ -36,11 +36,13 @@ Spacing: 16px page gutter; 24–40px between sections; 12px inside a claim row. 
 - Play: secondary, under meta, ≥44px hit, no autoplay, `glm-5-3` only
 - Topic dek: ≤2 short sentences on the page
 - Explore What Moved: latest brief headline or first sentence of material change — never the topic dek
+- Explore: Pulse (≤8 movement rows) · Radar (≤12 evidence-gaining topics) · Index (collapsed)
+- Dossier: claims instrument, or Latest evidence (3–5) with All sources behind a lid
 
 ## Do not
 
 - Purple AI glow, stock heroes, tickers, bylines
-- Article card grids, Pinterest, newspaper CMS chrome
+- Article card grids, Pinterest, newspaper CMS chrome, inventory dumps on home
 - Dark mode as a project
 - CitationForge on any consumer surface
 - Fake confidence scores
