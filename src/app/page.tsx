@@ -12,6 +12,7 @@ import { explainWhy, frequencyRows } from "@/lib/frequency/explain";
 import { hasFollows } from "@/lib/frequency/rank";
 import {
   changeLine,
+  moreChangesForTopic,
   movedToday,
   onPulse,
   pulseTopics,
@@ -63,6 +64,10 @@ export default async function HomePage({
       );
 
   const events = latestChangeByTopic(graph.changes ?? []);
+  const changeEventsByTopic = new Map<string, number>();
+  for (const event of graph.changes ?? []) {
+    changeEventsByTopic.set(event.topicId, (changeEventsByTopic.get(event.topicId) ?? 0) + 1);
+  }
   const catalog = graph.topics
     .filter((topic) => isPublicTopicStatus(topic.status))
     .map((topic) => ({ slug: topic.slug, name: topic.name }));
@@ -72,14 +77,12 @@ export default async function HomePage({
     const topicId = "topicId" in row ? row.topicId : "id" in row ? row.id : "";
     const event = events.get(topicId);
     const ranked = "reasons" in row ? row : null;
-    const change =
-      event?.summary ||
-      ("facet" in row
-        ? changeCopy(row)
-        : changeLine({
-            briefHeadline: latestBriefByTopic.get(row.id)?.headline,
-            changeSummary: latestByTopic.get(row.id)?.changeSummary,
-          }));
+    const change = changeLine({
+      briefHeadline: "facet" in row ? changeCopy(row) : latestBriefByTopic.get(topicId)?.headline,
+      changeSummary: event?.summary || latestByTopic.get(topicId)?.changeSummary,
+    });
+    const briefClaims =
+      graph.briefs.find((brief) => brief.topicId === topicId && brief.status === "published")?.renderData.claimIds.length ?? 0;
     return {
       slug: row.slug,
       name: row.name,
@@ -91,6 +94,11 @@ export default async function HomePage({
       worldMoved: movedToday(lastMaterial, now),
       changeKind: event ? changeKindLabel(event.kind) : ranked?.changeKind ? changeKindLabel(ranked.changeKind) : null,
       why: ranked ? explainWhy(ranked) : null,
+      moreCount: moreChangesForTopic({
+        changeEventCount: changeEventsByTopic.get(topicId) ?? 0,
+        briefClaimCount: briefClaims,
+        summary: event?.summary || latestByTopic.get(topicId)?.changeSummary || "",
+      }),
     };
   });
 

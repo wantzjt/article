@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { FrequencyList } from "@/components/frequency-list";
 import { WhyThis } from "@/components/why-this";
 import { LinkedText, type LinkedTopic } from "@/lib/render/topic-links";
-import { formatRelative, isFreshChange } from "@/lib/render/topic-view";
+import { formatRelative, isFreshChange, primaryChangeCopy } from "@/lib/render/topic-view";
 
 export type WorldFeedRow = {
   slug: string;
@@ -16,6 +16,7 @@ export type WorldFeedRow = {
   worldMoved?: boolean;
   changeKind?: string | null;
   why?: string | null;
+  moreCount?: number;
 };
 
 export function WorldFeed({
@@ -72,8 +73,15 @@ export function WorldFeed({
               {personalized && row.breakthrough ? " · highly material" : ""}
             </p>
             <p className="mt-1 text-[0.9375rem] leading-6 text-ink">
-              <LinkedText text={row.change} topics={catalog} skipSlug={row.slug} />
+              <LinkedText text={primaryChangeCopy(row.change)} topics={catalog} skipSlug={row.slug} />
             </p>
+            {(row.moreCount ?? 0) > 0 ? (
+              <p className="meta mt-1">
+                <Link href={`/topic/${row.slug}#what-changed`} className="hover:text-ink">
+                  +{row.moreCount} more {row.moreCount === 1 ? "change" : "changes"}
+                </Link>
+              </p>
+            ) : null}
             {personalized && row.why ? <WhyThis explanation={row.why} /> : null}
           </li>
         );

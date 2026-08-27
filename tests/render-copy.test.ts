@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { changeLine, displayDek, shortExcerpt, splitSentences } from "@/lib/render/topic-view";
+import {
+  changeLine,
+  displayDek,
+  moreChangesForTopic,
+  primaryChangeCopy,
+  shortExcerpt,
+  splitSentences,
+} from "@/lib/render/topic-view";
 
 describe("splitSentences", () => {
   it("does not split on GLM-5.3 version dots", () => {
@@ -27,6 +34,20 @@ describe("changeLine", () => {
         changeSummary: "Z.ai introduced GLM-5.3 with 1M context and tool calling. Gateway listing followed.",
       }),
     ).toBe("Z.ai introduced GLM-5.3 with 1M context and tool calling.");
+  });
+
+  it("clips a concatenated claim dump to one line", () => {
+    const dump =
+      "First cloud provider to deploy NVIDIA H200 Tensor Core GPUs Launched Unified Agentic AI Platform for Continuous Agent Improvement Expanded cloud ecosystem to CoreWeave Cloud by Rescale to support AI and engineering workloads";
+    expect(primaryChangeCopy(dump).length).toBeLessThanOrEqual(140);
+    expect(primaryChangeCopy(dump)).not.toContain("Expanded cloud");
+    expect(
+      moreChangesForTopic({
+        changeEventCount: 1,
+        briefClaimCount: 5,
+        summary: dump,
+      }),
+    ).toBe(4);
   });
 
   it("never falls back to a topic dek", () => {

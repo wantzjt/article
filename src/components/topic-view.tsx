@@ -18,6 +18,7 @@ import {
   latestEvidence,
   namesAlign,
   personIdentity,
+  primaryChangeCopy,
   shortExcerpt,
   warehouseSourceList,
 } from "@/lib/render/topic-view";
@@ -156,10 +157,11 @@ export function TopicView({
   const accepted = graph.claims.filter((claim) => claim.status !== "rejected");
   const disagreements = accepted.filter((claim) => claim.status === "disputed");
   const changedIds = new Set(graph.briefs[0]?.renderData.claimIds ?? []);
+  for (const event of graph.changes ?? []) {
+    if (event.claimId) changedIds.add(event.claimId);
+  }
   const changed = accepted.filter((claim) => changedIds.has(claim.id));
-  const whatChanged = changed.length
-    ? changed
-    : accepted.filter((claim) => claim.status === "supported").slice(0, 3);
+  const whatChanged = changed;
   const standing = accepted.filter(
     (claim) => !whatChanged.some((row) => row.id === claim.id) && claim.status !== "disputed",
   );
@@ -201,8 +203,8 @@ export function TopicView({
             facets={frequency.facets}
           />
         ) : null}
-        {whatChanged[0] ? (
-          <GroundedAsk slug={graph.topic.slug} kind="claim" id={whatChanged[0].id}>
+        {(whatChanged[0] ?? standing[0]) ? (
+          <GroundedAsk slug={graph.topic.slug} kind="claim" id={(whatChanged[0] ?? standing[0]).id}>
             <span className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink">
               Ask
             </span>
@@ -252,7 +254,7 @@ export function TopicView({
                   <li key={version.id}>
                     <p className="meta">{formatDate(version.createdAt)}</p>
                     <GroundedAsk slug={graph.topic.slug} kind="timeline" id={version.id}>
-                      <p className="mt-1 text-[0.9375rem] leading-6 text-ink">{version.changeSummary}</p>
+                      <p className="mt-1 text-[0.9375rem] leading-6 text-ink">{primaryChangeCopy(version.changeSummary)}</p>
                     </GroundedAsk>
                   </li>
                 ))}

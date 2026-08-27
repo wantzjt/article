@@ -58,15 +58,38 @@ export function shortExcerpt(text: string, max = 160): string {
   return oneLine(first, max);
 }
 
+/** One sharp Change line. Never a concatenated claim dump. */
+export function primaryChangeCopy(text: string | null | undefined, max = 140): string {
+  const compact = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!compact) return "Material change recorded.";
+  return oneLine(splitSentences(compact)[0] ?? compact, max);
+}
+
+export function extraChangeCount(total: number): number {
+  return Math.max(0, total - 1);
+}
+
+/** How many extra Changes sit behind the primary line. */
+export function moreChangesForTopic(input: {
+  changeEventCount: number;
+  briefClaimCount: number;
+  summary: string;
+}): number {
+  const tagged = Math.max(input.changeEventCount, input.briefClaimCount);
+  if (tagged > 1) return tagged - 1;
+  const sentences = splitSentences((input.summary ?? "").replace(/\s+/g, " ").trim());
+  return Math.max(0, sentences.length - 1);
+}
+
 /** Explore “what moved”: a material-change line, never the topic dek. */
 export function changeLine(input: {
   briefHeadline?: string | null;
   changeSummary?: string | null;
 }): string {
   const headline = input.briefHeadline?.replace(/\s+/g, " ").trim();
-  if (headline) return oneLine(splitSentences(headline)[0] ?? headline, 140);
+  if (headline) return primaryChangeCopy(headline);
   const summary = input.changeSummary?.replace(/\s+/g, " ").trim();
-  if (summary) return oneLine(splitSentences(summary)[0] ?? summary, 140);
+  if (summary) return primaryChangeCopy(summary);
   return "Material change recorded.";
 }
 

@@ -235,6 +235,8 @@ describe("pulse radar index", () => {
     expect(home).toMatch(/The World/);
     expect(home).toMatch(/Build my Frequency/);
     expect(board).toMatch(/Tune Frequency/);
+    expect(board).toMatch(/Your weights/);
+    expect(feed).toMatch(/moreCount/);
     expect(feed).toMatch(/#what-changed/);
     expect(why).toMatch(/Why this\?/);
     expect(feed).toMatch(/WhyThis/);

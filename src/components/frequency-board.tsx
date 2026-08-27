@@ -50,6 +50,17 @@ export function FrequencyBoard({ rows }: { rows: Row[] }) {
 
   return (
     <div className="space-y-3">
+      <p className="kicker">Your weights</p>
+      <ul>
+        {local.map((row) => (
+          <li key={row.slug} className="flex items-baseline justify-between gap-3 border-t border-rule py-2 first:border-t-0">
+            <Link href={`/topic/${row.slug}`} className="font-heading text-[1.0625rem] leading-6 hover:underline">
+              {row.name}
+            </Link>
+            <span className="meta">{row.level === "HIGH" ? "High" : row.level === "LOW" ? "Low" : row.level === "MUTED" ? "Muted" : "Normal"}</span>
+          </li>
+        ))}
+      </ul>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -65,7 +76,9 @@ export function FrequencyBoard({ rows }: { rows: Row[] }) {
                 <Link href={`/topic/${row.slug}`} className="font-serif text-[1.0625rem] leading-6 hover:underline">
                   {row.name}
                 </Link>
-                <span className="meta">{row.level}</span>
+                <span className="meta">
+                  {row.level === "HIGH" ? "High" : row.level === "LOW" ? "Low" : row.level === "MUTED" ? "Muted" : "Normal"}
+                </span>
               </div>
               {row.muted ? (
                 <p className="meta mt-2">Muted</p>
