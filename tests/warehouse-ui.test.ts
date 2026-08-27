@@ -237,6 +237,7 @@ describe("pulse radar index", () => {
     expect(home).not.toMatch(/stub — sources banked/);
     expect(dossier).toMatch(/Latest evidence/);
     expect(dossier).toMatch(/All sources/);
+    expect(dossier).toMatch(/GroundedAsk/);
     expect(dossier).toMatch(/Sources banked · not compiled/);
     expect(dossier).not.toMatch(/claimText: source/);
     expect(methodology).toMatch(/Last retrieved/);

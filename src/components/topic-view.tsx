@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { FrequencyControls } from "@/components/frequency-controls";
+import { GroundedAsk } from "@/components/grounded-ask";
 import { StatusChip } from "@/components/status-chip";
 import { TopicPlay } from "@/components/topic-play";
 import type { Facet } from "@/lib/frequency/facets";
@@ -47,25 +48,19 @@ function Empty({ children }: { children: ReactNode }) {
   return <p className="text-[0.9375rem] leading-6 text-ink-quiet">{children}</p>;
 }
 
-function SourceList({ claim }: { claim: ClaimWithEvidence }) {
+function SourceList({ claim, slug }: { claim: ClaimWithEvidence; slug: string }) {
   return (
     <ul className="mt-1 space-y-3 pb-3">
       {claim.evidence.map((item) => (
         <li key={`${item.source.id}-${item.supportType}`} className="text-[0.8125rem] leading-5">
-          <p className="font-mono text-[12px]/[16px] text-ink">
-            {item.supportType}
-            {" · "}
-            <a
-              className="underline decoration-rule underline-offset-2 hover:decoration-ink"
-              href={item.source.canonicalUrl}
-              rel="nofollow noopener"
-            >
-              {item.source.publisherDomain}
-            </a>
-          </p>
-          <blockquote className="mt-1 text-ink-quiet">
-            {shortExcerpt(item.evidenceExcerpt)}
-          </blockquote>
+          <GroundedAsk slug={slug} kind="source" id={item.source.id}>
+            <p className="font-mono text-[12px]/[16px] text-ink">
+              {item.supportType}
+              {" · "}
+              <span className="underline decoration-rule underline-offset-2">{item.source.publisherDomain}</span>
+            </p>
+            <blockquote className="mt-1 text-ink-quiet">{shortExcerpt(item.evidenceExcerpt)}</blockquote>
+          </GroundedAsk>
         </li>
       ))}
     </ul>
@@ -79,18 +74,22 @@ function ClaimRow({ graph, claim }: { graph: TopicGraph; claim: ClaimWithEvidenc
         <StatusChip status={claim.status} />
         <span className="meta">{evidenceLabel(graph, claim.id)}</span>
       </div>
-      <p className="claim-sentence mt-2">{claim.claimText}</p>
+      <div className="mt-2">
+        <GroundedAsk slug={graph.topic.slug} kind="claim" id={claim.id}>
+          <p className="claim-sentence">{claim.claimText}</p>
+        </GroundedAsk>
+      </div>
       {claim.evidence.length > 0 ? (
         <details className="sources mt-1">
           <summary>Sources</summary>
-          <SourceList claim={claim} />
+          <SourceList claim={claim} slug={graph.topic.slug} />
         </details>
       ) : null}
     </article>
   );
 }
 
-function SourcedPositions({ claim }: { claim: ClaimWithEvidence }) {
+function SourcedPositions({ graph, claim }: { graph: TopicGraph; claim: ClaimWithEvidence }) {
   const groups = (["supports", "disputes", "contextualizes"] as const)
     .map((supportType) => ({
       supportType,
@@ -100,7 +99,9 @@ function SourcedPositions({ claim }: { claim: ClaimWithEvidence }) {
 
   return (
     <article className="border-b border-rule py-3 last:border-0">
-      <p className="claim-sentence">{claim.claimText}</p>
+      <GroundedAsk slug={graph.topic.slug} kind="disagreement" id={claim.id}>
+        <p className="claim-sentence">{claim.claimText}</p>
+      </GroundedAsk>
       <div className="mt-4 space-y-4">
         {groups.map((group) => (
           <div key={group.supportType}>
@@ -231,7 +232,9 @@ export function TopicView({
             {disagreements.length === 0 ? (
               <Empty>No persisted contradictions.</Empty>
             ) : (
-              disagreements.map((claim) => <SourcedPositions key={claim.id} claim={claim} />)
+              disagreements.map((claim) => (
+                <SourcedPositions key={claim.id} graph={graph} claim={claim} />
+              ))
             )}
           </Section>
 
@@ -243,7 +246,9 @@ export function TopicView({
                 {graph.versions.map((version) => (
                   <li key={version.id}>
                     <p className="meta">{formatDate(version.createdAt)}</p>
-                    <p className="mt-1 text-[0.9375rem] leading-6 text-ink">{version.changeSummary}</p>
+                    <GroundedAsk slug={graph.topic.slug} kind="timeline" id={version.id}>
+                      <p className="mt-1 text-[0.9375rem] leading-6 text-ink">{version.changeSummary}</p>
+                    </GroundedAsk>
                   </li>
                 ))}
               </ol>
@@ -260,18 +265,14 @@ export function TopicView({
               <ul className="mt-3">
                 {recent.map((source) => (
                   <li key={source.id} className="border-t border-rule py-3 first:border-t-0">
-                    <p className="font-serif text-[1.0625rem] leading-6 tracking-tight text-ink">{source.title}</p>
-                    <p className="meta mt-1">
-                      <a
-                        className="underline decoration-rule underline-offset-2 hover:decoration-ink"
-                        href={source.canonicalUrl}
-                        rel="nofollow noopener"
-                      >
+                    <GroundedAsk slug={graph.topic.slug} kind="source" id={source.id}>
+                      <p className="font-serif text-[1.0625rem] leading-6 tracking-tight text-ink">{source.title}</p>
+                      <p className="meta mt-1">
                         {source.publisherDomain}
-                      </a>
-                      {" · "}
-                      {formatDate(source.publishedAt ?? source.retrievedAt)}
-                    </p>
+                        {" · "}
+                        {formatDate(source.publishedAt ?? source.retrievedAt)}
+                      </p>
+                    </GroundedAsk>
                     {source.evidenceExcerpt ? (
                       <p className="mt-1 text-[0.8125rem] leading-5 text-ink-quiet">
                         {shortExcerpt(source.evidenceExcerpt, 140)}
