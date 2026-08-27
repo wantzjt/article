@@ -46,6 +46,7 @@ export const CHANGE_KINDS = [
   "disputed",
   "resolved",
   "relationship",
+  "invalidated",
   "retracted",
 ] as const;
 export type ChangeKind = (typeof CHANGE_KINDS)[number];
@@ -80,6 +81,11 @@ export type ChangeEvent = {
   summary: string;
   material: boolean;
   createdAt: string;
+  /** All Topics this Change touches. */
+  topicIds?: string[];
+  sourceIds?: string[];
+  facets?: FacetCoordinate[];
+  priorStatus?: string | null;
 };
 
 export type FacetCoordinate = {

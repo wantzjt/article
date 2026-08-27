@@ -471,7 +471,14 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
 
     const allClaims = await store.listClaimsForTopic(topic.id);
     const allLinks = await store.listClaimSources(allClaims.map((claim) => claim.id));
-    await store.addChanges(detectClaimChanges({ topicId: topic.id, before: existingClaims, after: allClaims }));
+    await store.addChanges(
+      detectClaimChanges({
+        topicId: topic.id,
+        before: existingClaims,
+        after: allClaims,
+        links: allLinks,
+      }),
+    );
     const prior = await store.latestVersion(topic.id);
     const material = detectMaterialChange({
       previousHash: prior?.materialHash ?? null,

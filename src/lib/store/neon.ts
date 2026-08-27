@@ -229,9 +229,9 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
     }
     for (const change of graph.changes ?? []) {
       await sql.query(
-        `INSERT INTO graph_changes (id, topic_id, kind, claim_id, related_topic_id, summary, material, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-         ON CONFLICT (id) DO NOTHING`,
+        `INSERT INTO graph_changes (id, topic_id, kind, claim_id, related_topic_id, summary, material, created_at, meta)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
+         ON CONFLICT (id) DO UPDATE SET meta = EXCLUDED.meta`,
         [
           change.id,
           change.topicId,
@@ -241,6 +241,12 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
           change.summary,
           change.material,
           change.createdAt,
+          JSON.stringify({
+            topicIds: change.topicIds ?? [change.topicId],
+            sourceIds: change.sourceIds ?? [],
+            facets: change.facets ?? [],
+            priorStatus: change.priorStatus ?? null,
+          }),
         ],
       );
     }
@@ -465,6 +471,12 @@ function mapEdge(row: Record<string, unknown>): GraphEdge {
 }
 
 function mapChange(row: Record<string, unknown>): ChangeEvent {
+  const meta = (row.meta && typeof row.meta === "object" ? row.meta : {}) as {
+    topicIds?: string[];
+    sourceIds?: string[];
+    facets?: ChangeEvent["facets"];
+    priorStatus?: string | null;
+  };
   return {
     id: String(row.id),
     topicId: String(row.topic_id),
@@ -474,6 +486,10 @@ function mapChange(row: Record<string, unknown>): ChangeEvent {
     summary: String(row.summary ?? ""),
     material: Boolean(row.material),
     createdAt: isoRequired(row.created_at),
+    topicIds: Array.isArray(meta.topicIds) ? meta.topicIds : [String(row.topic_id)],
+    sourceIds: Array.isArray(meta.sourceIds) ? meta.sourceIds : [],
+    facets: Array.isArray(meta.facets) ? meta.facets : [],
+    priorStatus: meta.priorStatus ?? null,
   };
 }
 

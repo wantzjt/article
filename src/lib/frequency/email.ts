@@ -1,4 +1,5 @@
 import { brand } from "@/lib/brand";
+import { changeKindLabel } from "@/lib/compiler/change-engine";
 import { changeCopy } from "./changes";
 import type { RankedChange } from "./rank";
 
@@ -24,11 +25,13 @@ export function renderMorningFrequencyHtml(input: {
     .map((row) => {
       const href = `${brand.siteUrl}/topic/${row.slug}#what-changed`;
       const line = changeCopy(row);
-      const tag = row.breakthrough
-        ? "material interrupt"
-        : row.facetChild
-          ? `${row.facet} / ${row.facetChild}`
-          : row.facet;
+      const tag = row.changeKind
+        ? changeKindLabel(row.changeKind)
+        : row.breakthrough
+          ? "material interrupt"
+          : row.facetChild
+            ? `${row.facet} / ${row.facetChild}`
+            : row.facet;
       const source = row.sourceUrl
         ? `<div style="margin-top:6px;font-family:ui-monospace,monospace;font-size:12px;"><a href="${escapeHtml(row.sourceUrl)}" style="color:#7a7266;">${escapeHtml(row.sourceDomain ?? "source")}</a></div>`
         : "";

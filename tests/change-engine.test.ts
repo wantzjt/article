@@ -34,7 +34,38 @@ describe("change engine", () => {
     expect(kinds).toContain("confirmed");
     expect(kinds).toContain("resolved");
     expect(kinds).toContain("new");
-    expect(kinds).toContain("retracted");
+    expect(kinds).toContain("invalidated");
+  });
+
+  it("records prior state, sources, and facets on a confirmation", () => {
+    const before = [claim({ id: "a", status: "single_source", claimText: "NVIDIA shipped Blackwell." })];
+    const after = [
+      claim({
+        id: "a",
+        status: "supported",
+        claimText: "NVIDIA shipped Blackwell.",
+        coordinates: [{ facet: "technology", child: "gpus" }],
+      }),
+    ];
+    const events = detectClaimChanges({
+      topicId: "topic_nvidia",
+      before,
+      after,
+      links: [
+        {
+          claimId: "a",
+          sourceId: "src_1",
+          supportType: "supports",
+          evidenceExcerpt: "Blackwell GPUs shipped.",
+          createdAt: "t",
+        },
+      ],
+    });
+    const confirmed = events.find((row) => row.kind === "confirmed");
+    expect(confirmed?.priorStatus).toBe("single_source");
+    expect(confirmed?.sourceIds).toEqual(["src_1"]);
+    expect(confirmed?.topicIds).toEqual(["topic_nvidia"]);
+    expect(confirmed?.facets?.some((row) => row.child === "gpus")).toBe(true);
   });
 });
 

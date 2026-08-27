@@ -68,6 +68,7 @@ export function WorldFeed({
               </span>
             </div>
             <p className="meta mt-1">
+              {row.changeKind ? `${row.changeKind} · ` : ""}
               {row.child || row.kind}
               {world ? " · World changed" : ""}
               {personalized && row.breakthrough ? " · highly material" : ""}

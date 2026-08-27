@@ -171,4 +171,26 @@ describe("morning email", () => {
     expect(html).toContain("Your Frequency");
     expect(html).not.toContain("7,000");
   });
+
+  it("tags a typed Change in the morning brief", () => {
+    const html = renderMorningFrequencyHtml({
+      email: "a@b.com",
+      dateLabel: "27 August 2026",
+      rows: [
+        {
+          ...change({ topicId: "t0", slug: "openai", name: "OpenAI", changeKind: "new" }),
+          globalSignificance: 0.8,
+          personalRelevance: 1,
+          score: 0.8,
+          followed: true,
+          muted: false,
+          breakthrough: false,
+          reasons: ["followed"],
+        },
+      ],
+      unsubUrl: "https://article.fm/unsubscribe?t=abc",
+    });
+    expect(html).toContain("NEW");
+    expect(html).toContain("/topic/openai#what-changed");
+  });
 });

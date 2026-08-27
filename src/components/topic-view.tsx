@@ -156,12 +156,21 @@ export function TopicView({
 }) {
   const accepted = graph.claims.filter((claim) => claim.status !== "rejected");
   const disagreements = accepted.filter((claim) => claim.status === "disputed");
-  const briefIds = (graph.briefs[0]?.renderData.claimIds ?? []).slice(0, 3);
-  const eventIds = [...(graph.changes ?? [])]
-    .filter((event) => event.claimId && event.kind !== "relationship")
+  const typedIds = [...(graph.changes ?? [])]
+    .filter(
+      (event) =>
+        event.claimId &&
+        (event.kind === "new" ||
+          event.kind === "updated" ||
+          event.kind === "confirmed" ||
+          event.kind === "disputed" ||
+          event.kind === "resolved" ||
+          event.kind === "invalidated"),
+    )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map((event) => event.claimId as string);
-  const changedIds = new Set(briefIds.length ? briefIds : eventIds.slice(0, 2));
+  const briefIds = (graph.briefs[0]?.renderData.claimIds ?? []).slice(0, 3);
+  const changedIds = new Set((typedIds.length ? typedIds : briefIds).slice(0, 3));
   const changed = accepted.filter((claim) => changedIds.has(claim.id));
   const whatChanged = changed;
   const standing = accepted.filter(

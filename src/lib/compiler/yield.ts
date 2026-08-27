@@ -22,6 +22,7 @@ export type YieldSnapshot = {
   changesUpdated: number;
   changesRelationship: number;
   changesRetracted: number;
+  changesInvalidated: number;
 };
 
 export function yieldSnapshot(graph: GraphSnapshot): YieldSnapshot {
@@ -47,9 +48,11 @@ export function yieldSnapshot(graph: GraphSnapshot): YieldSnapshot {
     updated: 0,
     relationship: 0,
     retracted: 0,
+    invalidated: 0,
   };
   for (const change of graph.changes ?? []) {
-    if (change.kind in counts) counts[change.kind as keyof typeof counts] += 1;
+    if (change.kind === "invalidated" || change.kind === "retracted") counts.invalidated += 1;
+    else if (change.kind in counts) counts[change.kind as keyof typeof counts] += 1;
   }
   return {
     sources: graph.sources.length,
@@ -72,6 +75,7 @@ export function yieldSnapshot(graph: GraphSnapshot): YieldSnapshot {
     changesUpdated: counts.updated,
     changesRelationship: counts.relationship,
     changesRetracted: counts.retracted,
+    changesInvalidated: counts.invalidated,
   };
 }
 

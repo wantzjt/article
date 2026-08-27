@@ -164,7 +164,10 @@ CREATE TABLE IF NOT EXISTS graph_changes (
   related_topic_id text,
   summary text NOT NULL,
   material boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  meta jsonb NOT NULL DEFAULT '{}'::jsonb
 );
+
+ALTER TABLE graph_changes ADD COLUMN IF NOT EXISTS meta jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS coordinates jsonb NOT NULL DEFAULT '[]'::jsonb;
