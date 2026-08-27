@@ -5,8 +5,20 @@ import { contentHash } from "./hash";
 import { canonicalizeUrl } from "./urls";
 import type { DiscoveredSource } from "@/lib/gateway/exa";
 import { contentTypeForPass, exaOceanPasses, topicKind, type ExaCategory } from "./taxonomy";
+import { topicEntityMetaFromHits, type TopicEntityMeta } from "./exa-entity";
 
-export type ExaOceanStopReason = "hard_stop" | "queue" | "signal" | "quota" | "protect";
+export type ExaOceanStopReason = "hard_stop" | "queue" | "signal" | "quota" | "protect" | "session_cap";
+
+const FORBIDDEN_VEHICLE = /zai\/glm-5\.[23]($|-)/i;
+
+export function resolveExaVehicleModel(model: string): string {
+  const id = model.trim();
+  if (!id) throw new Error("EXA vehicle model is empty");
+  if (FORBIDDEN_VEHICLE.test(id)) {
+    throw new Error(`Forbidden Exa vehicle ${id}; use a cheap tool-capable model, not GLM-5.2/5.3`);
+  }
+  return id;
+}
 
 /** Language-model vehicle for provider Exa bills team credits. Off unless explicitly allowed. */
 export function exaModelVehicleAllowed(env: Record<string, string | undefined> = process.env): boolean {
@@ -65,7 +77,7 @@ export function discoveredToSourceRecords(input: {
   entity: SeedEntity;
   topicId: string;
   existingByUrl: Map<string, SourceRecord>;
-}): { pending: SourceRecord[]; added: number; unchanged: number; urls: string[] } {
+}): { pending: SourceRecord[]; added: number; unchanged: number; urls: string[]; entityMeta: TopicEntityMeta | null } {
   const pending: SourceRecord[] = [];
   let added = 0;
   let unchanged = 0;
@@ -82,7 +94,7 @@ export function discoveredToSourceRecords(input: {
     seen.add(canonicalUrl);
     urls.push(canonicalUrl);
     const excerpt = (hit.highlights.join(" ") || "").replace(/\u0000/g, "").slice(0, 2000);
-    const hash = contentHash([canonicalUrl, hit.title, excerpt]);
+    const hash = contentHash([canonicalUrl, hit.title, excerpt, hit.entityMeta?.exa_entity_id ?? ""]);
     const prior = input.existingByUrl.get(canonicalUrl);
     if (prior && prior.contentHash === hash) {
       unchanged += 1;
@@ -118,12 +130,14 @@ export function discoveredToSourceRecords(input: {
         exa_category: exaCategory,
         content_type: contentTypeForPass(exaCategory, classified.sourceType),
         domain: hit.publisherDomain,
-        raw_entity_meta: hit.publishedAt ? { published_at: hit.publishedAt } : null,
+        entity_id: hit.entityMeta?.exa_entity_id ?? null,
+        entity_type: hit.entityMeta?.exa_type ?? null,
+        raw_entity_meta: hit.rawEntity ?? hit.entityMeta ?? (hit.publishedAt ? { published_at: hit.publishedAt } : null),
       },
     });
     added += 1;
   }
-  return { pending, added, unchanged, urls };
+  return { pending, added, unchanged, urls, entityMeta: topicEntityMetaFromHits(input.hits) };
 }
 
 export function formatExaOceanReportMarkdown(report: {

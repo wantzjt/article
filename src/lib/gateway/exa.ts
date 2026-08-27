@@ -2,6 +2,12 @@ import { gateway } from "ai";
 import { EXA_NUM_RESULTS, EXA_SEARCH_TYPE } from "@/lib/env";
 import { canonicalizeUrl, publisherDomain } from "@/lib/compiler/urls";
 import type { ExaCategory } from "@/lib/compiler/taxonomy";
+import {
+  pickPrimaryEntity,
+  stripPrivateFields,
+  topicEntityMetaFromEntity,
+  type TopicEntityMeta,
+} from "@/lib/compiler/exa-entity";
 
 type ExaHit = {
   title?: string;
@@ -10,6 +16,7 @@ type ExaHit = {
   publishedDate?: string | null;
   text?: string;
   highlights?: string[];
+  entities?: unknown;
 };
 
 type ExaToolOutput = {
@@ -51,6 +58,8 @@ export type DiscoveredSource = {
   query: string;
   exaCategory?: ExaCategory;
   queryTag?: string;
+  entityMeta?: TopicEntityMeta | null;
+  rawEntity?: unknown;
 };
 
 function isExaResponse(output: unknown): output is ExaToolOutput {
@@ -75,6 +84,12 @@ export function hitsFromExaOutput(
   return found;
 }
 
+function preferredEntityType(category: ExaCategory | undefined): "person" | "company" | undefined {
+  if (category === "people") return "person";
+  if (category === "company") return "company";
+  return undefined;
+}
+
 function fromResult(
   result: ExaHit,
   query: string,
@@ -84,6 +99,11 @@ function fromResult(
     const canonicalUrl = canonicalizeUrl(result.url);
     const excerpt =
       (result.highlights ?? []).join(" ").trim() || (result.text ?? "").slice(0, 2000);
+    const entity = pickPrimaryEntity(result.entities, preferredEntityType(extras?.exaCategory));
+    const entityMeta = entity
+      ? topicEntityMetaFromEntity({ entity, sourceUrl: canonicalUrl, retrievedAt: new Date().toISOString() })
+      : null;
+    const rawEntity = entity ? stripPrivateFields(entity) : null;
     return {
       url: result.url,
       canonicalUrl,
@@ -95,6 +115,8 @@ function fromResult(
       query,
       exaCategory: extras?.exaCategory,
       queryTag: extras?.queryTag,
+      entityMeta,
+      rawEntity,
     };
   } catch {
     return null;

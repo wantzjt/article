@@ -1,3 +1,7 @@
+import type { TopicEntityMeta } from "./exa-entity";
+
+export type { TopicEntityMeta } from "./exa-entity";
+
 export const ENTITY_TYPES = [
   "lab",
   "model",
@@ -127,6 +131,8 @@ export type TopicRecord = {
   lastMaterialChangeAt: string | null;
   /** Product kind; derived from entityType when omitted. */
   kind?: TopicKind;
+  /** Public Exa person/company identity. Never private contact fields. */
+  entityMeta?: TopicEntityMeta | null;
 };
 
 export type BriefRecord = {

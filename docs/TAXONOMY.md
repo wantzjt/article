@@ -50,7 +50,26 @@ Derived from legacy `entityType` unless a seed sets `kind`:
 
 Persisted on every Exa hit (`sources.metadata` + existing columns):
 
-`exa_category` · `query_tag` · `content_type` · `domain` · `published_at` · `retrieved_at` · `content_hash` · `excerpt` (`evidence_excerpt`) · `title` · `publisher` · `topic_id` · `raw_entity_meta`
+`exa_category` · `query_tag` · `content_type` · `domain` · `published_at` · `retrieved_at` · `content_hash` · `excerpt` (`evidence_excerpt`) · `title` · `publisher` · `topic_id` · `entity_id` · `entity_type` · `raw_entity_meta`
+
+`raw_entity_meta` is sanitized Exa `entities[0]` (person/company properties). Emails and phones are stripped. Never product data.
+
+## Identity layer (person / company)
+
+Exa people/company hits include structured `entities[]`. Article.fm keeps that as **topic identity**, not a CRM.
+
+| Topic | Exa | Persist |
+|---|---|---|
+| `kind=person` | `category: people` + `news` | `topics.entity_meta` + source `raw_entity_meta` |
+| `kind=company` | `category: company` + news/filings/web | same |
+
+Person properties kept: `id`, `name`, `firstName`, `lastName`, `location`, `workHistory`, `educationHistory`.
+
+Company properties kept: `id`, `name`, `foundedYear`, `description`, `workforce`, `headquarters`, `financials`, `webTraffic`.
+
+`company` / `people` must not send `startPublishedDate`, `includeDomains`, or `excludeDomains`. Put constraints in the query string.
+
+**Websets** (async list → verify → enrich) are a later roster builder. They often need an Exa API key and may sit outside Gateway promo. Do not call Websets from `ocean:exa`.
 
 ## Pull plan (kind → Exa passes)
 
@@ -58,7 +77,7 @@ Persisted on every Exa hit (`sources.metadata` + existing columns):
 |---|---|
 | company | company + news + financial_report + web (official domain) |
 | model / product | web (docs/model card) + news + publication |
-| person | people + news |
+| person | people + news (role/firm in the people query via aliases) |
 | policy / standard | news + publication + web |
 | event | news + financial_report + web |
 | concept (research line) | publication + news + web |

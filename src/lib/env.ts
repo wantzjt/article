@@ -50,6 +50,11 @@ export const EXA_NUM_RESULTS = Number(process.env.EXA_NUM_RESULTS ?? "25");
 export const EXA_CONCURRENCY = Number(process.env.EXA_CONCURRENCY ?? "8");
 /** Discover-only ocean: target 15–25 parallel Exa tool calls. */
 export const EXA_OCEAN_CONCURRENCY = Number(process.env.EXA_OCEAN_CONCURRENCY ?? "20");
+/** Cheap tool-capable host for provider Exa. Never glm-5.2/5.3. */
+export const EXA_VEHICLE_MODEL =
+  (process.env.VEHICLE_MODEL ?? process.env.EXA_VEHICLE_MODEL ?? "meta/llama-3.1-8b").trim();
+export const EXA_OCEAN_SESSION_CEILING_USD = Number(process.env.EXA_OCEAN_SESSION_CEILING_USD ?? "5");
+export const EXA_CREDIT_FLOOR_USD = Number(process.env.EXA_CREDIT_FLOOR_USD ?? "1");
 export const OCEAN_HARD_STOP = process.env.OCEAN_HARD_STOP ?? "2026-08-30T23:59:00-05:00";
 
 export const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";

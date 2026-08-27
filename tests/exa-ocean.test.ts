@@ -8,6 +8,7 @@ import {
   exaOceanQueries,
   exaOceanStopReason,
   isExaHardStop,
+  resolveExaVehicleModel,
 } from "@/lib/compiler/exa-ocean";
 import { cachedSourcesForTopic } from "@/lib/compiler/compile-chunk";
 import { secondNightDecision } from "@/lib/compiler/fail-closed";
@@ -35,6 +36,9 @@ describe("exa ocean discover-only", () => {
     expect(blob).not.toMatch(/\bgenerateObject\b/);
     expect(blob).not.toMatch(/\bstreamText\b/);
     expect(src("src/lib/gateway/exa-invoke.ts")).toMatch(/gateway\.tools\.exaSearch/);
+    expect(src("src/lib/gateway/exa-invoke.ts")).toMatch(/toolChoice: \{ type: "tool", toolName: "exa_search" \}/);
+    expect(src("src/lib/env.ts")).toMatch(/meta\/llama-3\.1-8b/);
+    expect(src("src/lib/compiler/exa-ocean.ts")).toMatch(/session_cap/);
   });
 
   it("builds complementary queries and keeps glm-5-3 off a demo-last penalty", () => {
@@ -59,6 +63,12 @@ describe("exa ocean discover-only", () => {
     expect(exaModelVehicleAllowed({})).toBe(false);
     expect(exaModelVehicleAllowed({ EXA_ALLOW_MODEL_VEHICLE: "1" })).toBe(true);
     expect(exaModelVehicleAllowed({ EXA_ALLOW_MODEL_VEHICLE: "true" })).toBe(false);
+  });
+
+  it("forbids GLM-5.2/5.3 as the Exa vehicle", () => {
+    expect(resolveExaVehicleModel("meta/llama-3.1-8b")).toBe("meta/llama-3.1-8b");
+    expect(() => resolveExaVehicleModel("zai/glm-5.2")).toThrow(/Forbidden Exa vehicle/);
+    expect(() => resolveExaVehicleModel("zai/glm-5.3")).toThrow(/Forbidden Exa vehicle/);
   });
 
   it("honors hard stop and double-start lock", () => {

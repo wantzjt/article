@@ -2,8 +2,11 @@ import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import {
+  EXA_CREDIT_FLOOR_USD,
   EXA_NUM_RESULTS,
   EXA_OCEAN_CONCURRENCY,
+  EXA_OCEAN_SESSION_CEILING_USD,
+  EXA_VEHICLE_MODEL,
   OCEAN_HARD_STOP,
 } from "../src/lib/env";
 import { secondNightDecision, type NightLockFile } from "../src/lib/compiler/fail-closed";
@@ -15,12 +18,14 @@ import {
   formatExaOceanReportMarkdown,
   isExaHardStop,
   exaModelVehicleAllowed,
+  resolveExaVehicleModel,
   type ExaOceanStopReason,
   type ExaOceanTopicResult,
 } from "../src/lib/compiler/exa-ocean";
 import { exaOceanPasses, topicKind } from "../src/lib/compiler/taxonomy";
-import { invokeExaSearch } from "../src/lib/gateway/exa-invoke";
+import { invokeExaSearch, readGatewayCredits } from "../src/lib/gateway/exa-invoke";
 import { getOceanEntities } from "../src/lib/seed/broad";
+import { mergeTopicEntityMeta } from "../src/lib/compiler/exa-entity";
 import { FINANCE_SEED_SLUGS } from "../src/lib/seed/finance";
 import * as store from "../src/lib/store/json-store";
 import type { DiscoveredSource } from "../src/lib/gateway/exa";
@@ -229,6 +234,15 @@ async function discoverTopic(slug: string, pass: number): Promise<ExaOceanTopicR
     existingByUrl: byUrl,
   });
   if (mapped.pending.length) await store.upsertSources(mapped.pending);
+  if (mapped.entityMeta) {
+    const topic = await store.getTopicById(topicId);
+    if (topic) {
+      const entityMeta = mergeTopicEntityMeta(topic.entityMeta, mapped.entityMeta);
+      if (entityMeta && JSON.stringify(entityMeta) !== JSON.stringify(topic.entityMeta ?? null)) {
+        await store.patchTopicEntityMeta(topic.id, entityMeta);
+      }
+    }
+  }
 
   return {
     slug,
@@ -293,6 +307,8 @@ async function main() {
   process.on("SIGINT", () => void onSignal());
   process.on("SIGTERM", () => void onSignal());
 
+  const vehicle = resolveExaVehicleModel(EXA_VEHICLE_MODEL);
+  let sessionSpendUsd = 0;
   await writeLock();
   const finance = new Set(FINANCE_SEED_SLUGS);
   const entities = getOceanEntities().filter((row) => !finance.has(row.slug));
@@ -308,6 +324,9 @@ async function main() {
     resumed: progress.completed.length,
     claimsAtStart: progress.claimsAtStart,
     urlsAtStart: progress.urlsAtStart,
+    vehicle,
+    sessionCeilingUsd: EXA_OCEAN_SESSION_CEILING_USD,
+    creditFloorUsd: EXA_CREDIT_FLOOR_USD,
   });
 
   async function runPass(thinPass: boolean): Promise<void> {
@@ -347,11 +366,22 @@ async function main() {
           progress.results[`${progress.pass}:${slug}`] = result;
           if (!thinPass) progress.completed.push(slug);
           progress.gatewayVehicleCostUsd += result.gatewayCostUsd;
+          sessionSpendUsd += result.gatewayCostUsd;
           progress.rateLimits += result.errors.filter((row) => /429|rate/i.test(row)).length;
           progress.errors.push(...result.errors);
           if (result.createdStub) progress.stubsCreated.push(slug);
-          if (result.errors.some((row) => /budget exceeded|quota_for_entity/i.test(row))) {
+          if (result.errors.some((row) => /budget exceeded|quota_for_entity|payment/i.test(row))) {
             progress.stopReason = "quota";
+            signaled = true;
+          }
+          if (sessionSpendUsd >= EXA_OCEAN_SESSION_CEILING_USD) {
+            progress.stopReason = "session_cap";
+            signaled = true;
+          }
+          const credits = await readGatewayCredits();
+          if (credits.balanceUsd != null && credits.balanceUsd < EXA_CREDIT_FLOOR_USD) {
+            progress.stopReason = "quota";
+            progress.errors.push(`credit_floor ${credits.balanceUsd} < ${EXA_CREDIT_FLOOR_USD}`);
             signaled = true;
           }
           log({
@@ -363,6 +393,8 @@ async function main() {
             sourcesUnchanged: result.sourcesUnchanged,
             durationMs: result.durationMs,
             errors: result.errors.length,
+            sessionSpendUsd,
+            creditBalanceUsd: credits.balanceUsd,
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : "topic_failed";

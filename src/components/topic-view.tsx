@@ -3,7 +3,19 @@ import Link from "next/link";
 import { StatusChip } from "@/components/status-chip";
 import { TopicPlay } from "@/components/topic-play";
 import type { ClaimWithEvidence, TopicGraph } from "@/lib/store/graph";
-import { displayDek, evidenceLabel, formatDate, formatTime, shortExcerpt } from "@/lib/render/topic-view";
+import { topicKind } from "@/lib/compiler/taxonomy";
+import {
+  displayDek,
+  evidenceLabel,
+  formatCount,
+  formatDate,
+  formatTime,
+  lastRetrievedAt,
+  personIdentity,
+  shortExcerpt,
+  warehouseSourceList,
+  WAREHOUSE_SOURCE_PAGE_LIMIT,
+} from "@/lib/render/topic-view";
 
 const SUPPORT_LABEL = {
   supports: "Supports",
@@ -131,22 +143,34 @@ export function TopicView({
     : accepted.filter((claim) => claim.status === "supported").slice(0, 3);
   const stub = graph.topic.status === "stub";
   const indexed = graph.topic.status === "strong";
+  const hasClaims = accepted.length > 0;
+  const identity = personIdentity(graph.topic.entityMeta);
+  const kind = topicKind(graph.topic);
+  const banked = warehouseSourceList(graph.sources);
+  const lastSource = lastRetrievedAt(graph.sources);
+  const identityBits = identity
+    ? [identity.role, identity.company, identity.location].filter(Boolean)
+    : [];
 
   return (
     <div className="space-y-8">
       <header className="space-y-3">
-        <p className="kicker">{graph.topic.entityType}</p>
-        <h1 className={stub ? "font-serif text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
-          {graph.topic.name}
+        <p className="kicker">{kind}</p>
+        <h1 className={stub && graph.sources.length === 0 ? "font-serif text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
+          {identity?.name || graph.topic.name}
         </h1>
-        <p className={`max-w-prose text-[0.9375rem] leading-6 ${stub ? "text-ink-quiet" : ""}`}>
-          {displayDek(graph.topic.description)}
-        </p>
+        {identityBits.length > 0 ? (
+          <p className="meta">{identityBits.join(" · ")}</p>
+        ) : (
+          <p className={`max-w-prose text-[0.9375rem] leading-6 ${stub ? "text-ink-quiet" : ""}`}>
+            {displayDek(graph.topic.description)}
+          </p>
+        )}
         <div className="space-y-2">
           <p className="meta">
             Last verified {formatTime(graph.topic.lastVerifiedAt)}
             {" · "}
-            {graph.sources.length} sources
+            {formatCount(graph.sources.length)} sources
             {" · "}
             {accepted.length} claims
             {" · "}
@@ -161,48 +185,95 @@ export function TopicView({
         </div>
       </header>
 
-      <Section id="what-changed" title="What Changed">
-        {whatChanged.length === 0 ? (
-          <Empty>
-            {stub
-              ? "No compiled claims yet. This topic is a stub."
-              : "No material claim movement in the recent window."}
-          </Empty>
-        ) : (
-          whatChanged.map((claim) => <ClaimRow key={claim.id} graph={graph} claim={claim} />)
-        )}
-      </Section>
+      {hasClaims ? (
+        <>
+          <Section id="what-changed" title="What Changed">
+            {whatChanged.length === 0 ? (
+              <Empty>No material claim movement in the recent window.</Empty>
+            ) : (
+              whatChanged.map((claim) => <ClaimRow key={claim.id} graph={graph} claim={claim} />)
+            )}
+          </Section>
 
-      <Section id="evidence" title="Evidence">
-        {accepted.length === 0 ? (
-          <Empty>No accepted claims on this topic.</Empty>
-        ) : (
-          accepted.map((claim) => <ClaimRow key={claim.id} graph={graph} claim={claim} />)
-        )}
-      </Section>
-
-      <Section id="disagreements" title="Disagreements">
-        {disagreements.length === 0 ? (
-          <Empty>No persisted contradictions.</Empty>
-        ) : (
-          disagreements.map((claim) => <SourcedPositions key={claim.id} claim={claim} />)
-        )}
-      </Section>
-
-      <Section id="timeline" title="Timeline">
-        {graph.versions.length === 0 ? (
-          <Empty>No versions recorded.</Empty>
-        ) : (
-          <ol className="space-y-5">
-            {graph.versions.map((version) => (
-              <li key={version.id}>
-                <p className="meta">{formatDate(version.createdAt)}</p>
-                <p className="mt-1 text-[0.9375rem] leading-6 text-ink">{version.changeSummary}</p>
-              </li>
+          <Section id="evidence" title="Evidence">
+            {accepted.map((claim) => (
+              <ClaimRow key={claim.id} graph={graph} claim={claim} />
             ))}
-          </ol>
-        )}
-      </Section>
+          </Section>
+
+          <Section id="disagreements" title="Disagreements">
+            {disagreements.length === 0 ? (
+              <Empty>No persisted contradictions.</Empty>
+            ) : (
+              disagreements.map((claim) => <SourcedPositions key={claim.id} claim={claim} />)
+            )}
+          </Section>
+
+          <Section id="timeline" title="Timeline">
+            {graph.versions.length === 0 ? (
+              <Empty>No versions recorded.</Empty>
+            ) : (
+              <ol className="space-y-5">
+                {graph.versions.map((version) => (
+                  <li key={version.id}>
+                    <p className="meta">{formatDate(version.createdAt)}</p>
+                    <p className="mt-1 text-[0.9375rem] leading-6 text-ink">{version.changeSummary}</p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Section>
+        </>
+      ) : (
+        <Section id="sources" title="Sources">
+          {graph.sources.length === 0 ? (
+            <Empty>
+              {stub
+                ? "No compiled claims yet. This topic is a stub."
+                : "No sources banked on this topic."}
+            </Empty>
+          ) : (
+            <div>
+              <p className="meta">
+                {formatCount(graph.sources.length)} sources
+                {" · "}
+                last retrieved {formatTime(lastSource)}
+                {stub ? " · stub — sources banked" : ""}
+              </p>
+              <details className="sources mt-3">
+                <summary>
+                  {graph.sources.length > WAREHOUSE_SOURCE_PAGE_LIMIT
+                    ? `Sources (${WAREHOUSE_SOURCE_PAGE_LIMIT} of ${formatCount(graph.sources.length)})`
+                    : "Sources"}
+                </summary>
+                <ul className="mt-1 space-y-3 pb-3">
+                  {banked.map((source) => (
+                    <li key={source.id} className="text-[0.8125rem] leading-5">
+                      <p className="font-serif text-[0.9375rem] leading-6 text-ink">{source.title}</p>
+                      <p className="font-mono text-[12px]/[16px] text-ink">
+                        <a
+                          className="underline decoration-rule underline-offset-2 hover:decoration-ink"
+                          href={source.canonicalUrl}
+                          rel="nofollow noopener"
+                        >
+                          {source.publisherDomain}
+                        </a>
+                        {" · "}
+                        {formatDate(source.publishedAt ?? source.retrievedAt)}
+                      </p>
+                      {source.evidenceExcerpt ? (
+                        <blockquote className="mt-1 text-ink-quiet">
+                          {shortExcerpt(source.evidenceExcerpt)}
+                        </blockquote>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+          )}
+        </Section>
+      )}
 
       <p className="meta">
         <Link href={`/topic/${graph.topic.slug}/md`} className="hover:text-ink">

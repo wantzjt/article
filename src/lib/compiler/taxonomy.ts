@@ -83,10 +83,11 @@ export type ExaOceanPass = {
 };
 
 export function exaToolArgsForPass(pass: Pick<ExaOceanPass, "category" | "includeDomains">, startPublishedDate?: string) {
+  const forbid = categoryForbidsDateFilter(pass.category);
   return {
     category: toExaApiCategory(pass.category),
-    includeDomains: pass.includeDomains,
-    startPublishedDate: categoryForbidsDateFilter(pass.category) ? undefined : startPublishedDate,
+    includeDomains: forbid ? undefined : pass.includeDomains,
+    startPublishedDate: forbid ? undefined : startPublishedDate,
   };
 }
 
@@ -134,7 +135,8 @@ export function exaOceanPasses(entity: SeedEntity): ExaOceanPass[] {
       break;
     case "person":
       add(name, "people", "people.canonical");
-      add(`${name} interview OR announces OR appointment`, "news", "news.person");
+      if (aliases) add(`${name} ${aliases}`, "people", "people.role");
+      add(`${name} interview OR appointment OR partner OR CEO`, "news", "news.person");
       break;
     case "policy":
     case "standard":

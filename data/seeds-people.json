@@ -1,0 +1,22 @@
+[
+  { "slug": "avidan-ross", "name": "Avidan Ross", "entityType": "investor", "kind": "person", "description": "Partner at Root Ventures.", "aliases": ["Root Ventures"], "officialDomains": ["root.vc"] },
+  { "slug": "ashmeet-sidana", "name": "Ashmeet Sidana", "entityType": "investor", "kind": "person", "description": "Founder and GP at Engineering Capital.", "aliases": ["Engineering Capital"], "officialDomains": ["engineeringcapital.com"] },
+  { "slug": "lenny-pruss", "name": "Lenny Pruss", "entityType": "investor", "kind": "person", "description": "Partner at Amplify Partners.", "aliases": ["Amplify Partners"], "officialDomains": ["amplifypartners.com"] },
+  { "slug": "sarah-catanzaro", "name": "Sarah Catanzaro", "entityType": "investor", "kind": "person", "description": "Partner at Amplify Partners; AI/data.", "aliases": ["Amplify Partners"], "officialDomains": ["amplifypartners.com"] },
+  { "slug": "andy-mcloughlin", "name": "Andy McLoughlin", "entityType": "investor", "kind": "person", "description": "Partner at Uncork Capital.", "aliases": ["Uncork Capital"], "officialDomains": ["uncorkcapital.com"] },
+  { "slug": "bucky-moore", "name": "Bucky Moore", "entityType": "investor", "kind": "person", "description": "Partner at Lightspeed Venture Partners.", "aliases": ["Lightspeed"], "officialDomains": ["lsvp.com"] },
+  { "slug": "astasia-myers", "name": "Astasia Myers", "entityType": "investor", "kind": "person", "description": "Senior Venture Partner at Felicis.", "aliases": ["Felicis"], "officialDomains": ["felicis.com"] },
+  { "slug": "asheem-chandna", "name": "Asheem Chandna", "entityType": "investor", "kind": "person", "description": "Partner at Greylock.", "aliases": ["Greylock"], "officialDomains": ["greylock.com"] },
+  { "slug": "byron-deeter", "name": "Byron Deeter", "entityType": "investor", "kind": "person", "description": "Partner at Bessemer Venture Partners.", "aliases": ["Bessemer", "BVP"], "officialDomains": ["bvp.com"] },
+  { "slug": "david-ulevitch", "name": "David Ulevitch", "entityType": "investor", "kind": "person", "description": "General Partner at Andreessen Horowitz.", "aliases": ["a16z"], "officialDomains": ["a16z.com"] },
+  { "slug": "sonya-huang", "name": "Sonya Huang", "entityType": "investor", "kind": "person", "description": "Partner at Sequoia Capital.", "aliases": ["Sequoia"], "officialDomains": ["sequoiacap.com"] },
+  { "slug": "mike-maples-jr", "name": "Mike Maples Jr.", "entityType": "investor", "kind": "person", "description": "Partner at Floodgate.", "aliases": ["Floodgate", "Mike Maples"], "officialDomains": ["floodgate.com"] },
+  { "slug": "ann-miura-ko", "name": "Ann Miura-Ko", "entityType": "investor", "kind": "person", "description": "Partner at Floodgate.", "aliases": ["Floodgate"], "officialDomains": ["floodgate.com"] },
+  { "slug": "gaurav-jain", "name": "Gaurav Jain", "entityType": "investor", "kind": "person", "description": "Partner at Afore Capital.", "aliases": ["Afore Capital"], "officialDomains": ["afore.vc"] },
+  { "slug": "anamitra-banerji", "name": "Anamitra Banerji", "entityType": "investor", "kind": "person", "description": "Partner at Afore Capital.", "aliases": ["Afore Capital"], "officialDomains": ["afore.vc"] },
+  { "slug": "sam-altman", "name": "Sam Altman", "entityType": "lab", "kind": "person", "description": "CEO of OpenAI.", "aliases": ["OpenAI"], "officialDomains": ["openai.com"] },
+  { "slug": "dario-amodei", "name": "Dario Amodei", "entityType": "lab", "kind": "person", "description": "CEO of Anthropic.", "aliases": ["Anthropic"], "officialDomains": ["anthropic.com"] },
+  { "slug": "demis-hassabis", "name": "Demis Hassabis", "entityType": "lab", "kind": "person", "description": "CEO of Google DeepMind.", "aliases": ["DeepMind"], "officialDomains": ["deepmind.google"] },
+  { "slug": "jensen-huang", "name": "Jensen Huang", "entityType": "lab", "kind": "person", "description": "CEO of NVIDIA.", "aliases": ["NVIDIA"], "officialDomains": ["nvidia.com"] },
+  { "slug": "liang-wenfeng", "name": "Liang Wenfeng", "entityType": "lab", "kind": "person", "description": "CEO of DeepSeek.", "aliases": ["DeepSeek"], "officialDomains": ["deepseek.com"] }
+]

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { brand } from "@/lib/brand";
 import { StatusChip } from "@/components/status-chip";
-import { changeLine, formatTime } from "@/lib/render/topic-view";
+import { changeLine, formatCount, formatTime, warehouseCoverage, warehouseInventory } from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,8 @@ export default async function HomePage() {
     }
   }
   const moved = topics.filter((topic) => topic.lastMaterialChangeAt);
+  const coverage = warehouseCoverage(graph);
+  const inventory = warehouseInventory(graph);
   const briefs = graph.briefs
     .filter((brief) => brief.status === "published")
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
@@ -80,6 +82,48 @@ export default async function HomePage() {
           </ul>
         )}
       </section>
+
+      <section>
+        <h2 className="kicker">Warehouse</h2>
+        <p className="meta mt-3">
+          {formatCount(coverage.urls)} URLs
+          {" · "}
+          {formatCount(coverage.topics)} topics
+          {" · "}
+          {coverage.strong} strong
+          {" · "}
+          {coverage.provisional} provisional
+          {" · "}
+          {coverage.stub} stub
+          {coverage.people ? ` · ${coverage.people} people` : ""}
+        </p>
+        <p className="meta mt-1">Last source {formatTime(coverage.lastRetrievedAt)}</p>
+      </section>
+
+      {inventory.length > 0 ? (
+        <section>
+          <h2 className="kicker">Coverage</h2>
+          <ul className="mt-4">
+            {inventory.map((row) => (
+              <li key={row.slug} className="border-t border-rule py-3 first:border-t-0">
+                <div className="flex items-baseline justify-between gap-3">
+                  <Link
+                    href={`/topic/${row.slug}`}
+                    className="font-serif text-[1.0625rem] leading-6 tracking-tight text-ink hover:underline"
+                  >
+                    {row.name}
+                  </Link>
+                  <span className="meta shrink-0">{row.kind}</span>
+                </div>
+                <p className="meta mt-1">
+                  {formatCount(row.sourceCount)} sources
+                  {row.banked ? " · stub — sources banked" : row.status === "stub" ? " · stub" : ` · ${row.status}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {briefs.length > 0 ? (
         <section>

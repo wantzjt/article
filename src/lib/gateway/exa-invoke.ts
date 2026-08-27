@@ -1,13 +1,23 @@
 import { gateway } from "ai";
 import { getVercelOidcToken } from "@vercel/oidc";
-import { EXA_NUM_RESULTS, EXA_SEARCH_TYPE, PRIMARY_MODEL } from "@/lib/env";
-import { exaModelVehicleAllowed } from "@/lib/compiler/exa-ocean";
+import { EXA_NUM_RESULTS, EXA_SEARCH_TYPE, EXA_VEHICLE_MODEL } from "@/lib/env";
+import { exaModelVehicleAllowed, resolveExaVehicleModel } from "@/lib/compiler/exa-ocean";
 import { exaToolArgsForPass, type ExaCategory } from "@/lib/compiler/taxonomy";
 import { hitsFromExaOutput, type DiscoveredSource } from "./exa";
 
 const GATEWAY_LM = "https://ai-gateway.vercel.sh/v4/ai/language-model";
 
 export type ExaInvokeErrorKind = "rate_limit" | "http" | "empty" | "auth" | "quota";
+
+export async function readGatewayCredits(): Promise<{ balanceUsd: number | null }> {
+  try {
+    const credits = await gateway.getCredits();
+    const n = Number(credits.balance);
+    return { balanceUsd: Number.isFinite(n) ? n : null };
+  } catch {
+    return { balanceUsd: null };
+  }
+}
 
 export type ExaInvokeResult = {
   query: string;
@@ -29,7 +39,7 @@ async function authHeaders(): Promise<Record<string, string>> {
     "ai-gateway-auth-method": "oidc",
     "ai-language-model-specification-version": "4",
     "ai-language-model-streaming": "false",
-    "ai-language-model-id": PRIMARY_MODEL,
+    "ai-language-model-id": resolveExaVehicleModel(EXA_VEHICLE_MODEL),
   };
 }
 
@@ -105,8 +115,8 @@ export async function invokeExaSearch(input: {
         ],
       },
     ],
-    maxOutputTokens: 100,
-    toolChoice: { type: "auto" },
+    maxOutputTokens: 80,
+    toolChoice: { type: "tool", toolName: "exa_search" },
     tools: [
       {
         type: "provider",

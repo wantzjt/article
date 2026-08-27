@@ -101,3 +101,4 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
 );
 
 ALTER TABLE topics ADD COLUMN IF NOT EXISTS kind text;
+ALTER TABLE topics ADD COLUMN IF NOT EXISTS entity_meta jsonb NOT NULL DEFAULT '{}'::jsonb;

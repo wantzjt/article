@@ -4,6 +4,7 @@ import type {
   ClaimRecord,
   ClaimSourceRecord,
   SourceRecord,
+  TopicEntityMeta,
   TopicRecord,
   TopicVersionRecord,
 } from "@/lib/compiler/types";
@@ -60,8 +61,8 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
     await sql.query(
       `INSERT INTO topics (
          id, slug, name, entity_type, description, aliases, official_domains, status,
-         created_at, updated_at, last_verified_at, last_material_change_at, kind
-       ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$12,$13)
+         created_at, updated_at, last_verified_at, last_material_change_at, kind, entity_meta
+       ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$12,$13,$14::jsonb)
        ON CONFLICT (id) DO UPDATE SET
          slug = EXCLUDED.slug,
          name = EXCLUDED.name,
@@ -73,7 +74,8 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
          updated_at = EXCLUDED.updated_at,
          last_verified_at = EXCLUDED.last_verified_at,
          last_material_change_at = EXCLUDED.last_material_change_at,
-         kind = EXCLUDED.kind`,
+         kind = EXCLUDED.kind,
+         entity_meta = EXCLUDED.entity_meta`,
       [
         topic.id,
         topic.slug,
@@ -88,6 +90,7 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
         topic.lastVerifiedAt,
         topic.lastMaterialChangeAt,
         topic.kind ?? null,
+        JSON.stringify(topic.entityMeta ?? {}),
       ],
     );
   }
@@ -277,7 +280,19 @@ function mapTopic(row: Record<string, unknown>): TopicRecord {
     kind: isTopicKind(row.kind ? String(row.kind) : null)
       ? (row.kind as TopicRecord["kind"])
       : topicKindFromEntityType(row.entity_type as TopicRecord["entityType"]),
+    entityMeta:
+      row.entity_meta && typeof row.entity_meta === "object" && !Array.isArray(row.entity_meta)
+        ? (row.entity_meta as TopicEntityMeta)
+        : null,
   };
+}
+
+export async function updateTopicEntityMetaToNeon(topicId: string, entityMeta: TopicEntityMeta): Promise<void> {
+  const sql = db();
+  await sql.query(`UPDATE topics SET entity_meta = $2::jsonb, updated_at = now() WHERE id = $1`, [
+    topicId,
+    JSON.stringify(entityMeta),
+  ]);
 }
 
 function mapSource(row: Record<string, unknown>): SourceRecord {

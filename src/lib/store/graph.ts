@@ -67,13 +67,27 @@ export type TopicGraph = {
   briefs: BriefRecord[];
 };
 
+/** Ocean banks hits on metadata.topic_id / topicId, not only claim_sources. */
+export function topicIdFromSource(source: SourceRecord): string | null {
+  const meta = source.metadata ?? {};
+  if (typeof meta.topic_id === "string" && meta.topic_id) return meta.topic_id;
+  if (typeof meta.topicId === "string" && meta.topicId) return meta.topicId;
+  return null;
+}
+
 export function assembleTopic(graph: GraphSnapshot, topic: TopicRecord): TopicGraph {
   const claims = graph.claims.filter((claim) => claim.topicId === topic.id);
   const claimIds = new Set(claims.map((claim) => claim.id));
   const links = graph.claimSources.filter((link) => claimIds.has(link.claimId));
-  const sourceIds = new Set(links.map((link) => link.sourceId));
-  const sources = graph.sources.filter((source) => sourceIds.has(source.id));
-  const sourceById = new Map(sources.map((source) => [source.id, source]));
+  const linkedIds = new Set(links.map((link) => link.sourceId));
+  const sourceById = new Map(graph.sources.map((source) => [source.id, source]));
+  const sourcesById = new Map<string, SourceRecord>();
+  for (const source of graph.sources) {
+    if (linkedIds.has(source.id) || topicIdFromSource(source) === topic.id) {
+      sourcesById.set(source.id, source);
+    }
+  }
+  const sources = [...sourcesById.values()].sort((a, b) => b.retrievedAt.localeCompare(a.retrievedAt));
   return {
     topic,
     sources,

@@ -50,6 +50,7 @@ describe("taxonomy-aware Exa passes", () => {
     for (const pass of passes.filter((row) => row.category === "company" || row.category === "people")) {
       const args = exaToolArgsForPass(pass, "2025-01-01T00:00:00.000Z");
       expect(args.startPublishedDate).toBeUndefined();
+      expect(args.includeDomains).toBeUndefined();
       expect(categoryForbidsDateFilter(pass.category)).toBe(true);
     }
     const newsArgs = exaToolArgsForPass(
@@ -58,6 +59,7 @@ describe("taxonomy-aware Exa passes", () => {
     );
     expect(newsArgs.startPublishedDate).toBe("2025-01-01T00:00:00.000Z");
     expect(newsArgs.category).toBe("news");
+    expect(newsArgs.includeDomains).toBeUndefined();
   });
 
   it("uses publication + news + web for models and policy", () => {

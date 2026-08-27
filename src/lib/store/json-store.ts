@@ -6,6 +6,7 @@ import type {
   ClaimRecord,
   ClaimSourceRecord,
   SourceRecord,
+  TopicEntityMeta,
   TopicRecord,
   TopicVersionRecord,
 } from "@/lib/compiler/types";
@@ -13,7 +14,7 @@ import { assembleTopic, emptyGraph, type GraphSnapshot, type PipelineRunRecord, 
 import { glm53Fixture } from "@/lib/fixture/glm-5-3";
 import { SEED_ENTITIES } from "@/lib/seed/entities";
 import { topicKind } from "@/lib/compiler/taxonomy";
-import { loadGraphFromNeon, saveGraphToNeon, upsertSourcesToNeon } from "./neon";
+import { loadGraphFromNeon, saveGraphToNeon, updateTopicEntityMetaToNeon, upsertSourcesToNeon } from "./neon";
 
 const DATA_PATH = path.join(process.cwd(), "data", "graph.json");
 
@@ -150,6 +151,28 @@ export async function upsertTopic(input: Omit<TopicRecord, "createdAt" | "update
   graph.topics.push(row);
   await persist(graph);
   return row;
+}
+
+export async function patchTopicEntityMeta(topicId: string, entityMeta: TopicEntityMeta): Promise<void> {
+  const graph = await load();
+  const topic = graph.topics.find((row) => row.id === topicId);
+  if (!topic) return;
+  topic.entityMeta = entityMeta;
+  topic.updatedAt = new Date().toISOString();
+  memory = graph;
+  if (process.env.VITEST) return;
+  if (process.env.DATABASE_URL) {
+    try {
+      await updateTopicEntityMetaToNeon(topicId, entityMeta);
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          kind: "citationforge.neon_persist_failed",
+          message: error instanceof Error ? error.message : "unknown",
+        }),
+      );
+    }
+  }
 }
 
 export async function upsertSource(input: SourceRecord): Promise<SourceRecord> {
