@@ -70,6 +70,8 @@ export function knownTopicKeys(graph: GraphSnapshot): Set<string> {
 function alreadyKnown(entity: SeedEntity, known: Set<string>): boolean {
   if (known.has(entity.slug)) return true;
   if (known.has(entity.name.toLowerCase())) return true;
+  // Person aliases are often employer names, not the person.
+  if (entity.kind === "person") return false;
   return entity.aliases.some((alias) => known.has(alias.toLowerCase()));
 }
 

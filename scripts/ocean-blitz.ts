@@ -21,6 +21,7 @@ import { proposeFrontier, type FrontierEdge } from "../src/lib/compiler/frontier
 import { topicKind } from "../src/lib/compiler/taxonomy";
 import { readGatewayCredits } from "../src/lib/gateway/exa-invoke";
 import { getFrontierSeedEntities } from "../src/lib/seed/frontier";
+import { topicIdFromSource } from "../src/lib/store/graph";
 import * as store from "../src/lib/store/json-store";
 import type { SeedEntity } from "../src/lib/compiler/types";
 
@@ -45,6 +46,7 @@ type Progress = {
   gatewayVehicleCostUsd: number;
   errors: string[];
   completed: string[];
+  recrawled: string[];
   results: Record<string, ExaOceanTopicResult>;
 };
 
@@ -97,7 +99,9 @@ async function releaseLock(): Promise<void> {
 async function loadProgress(): Promise<Progress> {
   try {
     const prior = JSON.parse(await readFile(PROGRESS_PATH, "utf8")) as Progress;
-    if (prior.startedAt && prior.results) return prior;
+    if (prior.startedAt && prior.results) {
+      return { ...prior, recrawled: prior.recrawled ?? [] };
+    }
   } catch {
     // first run
   }
@@ -116,6 +120,7 @@ async function loadProgress(): Promise<Progress> {
     gatewayVehicleCostUsd: 0,
     errors: [],
     completed: [],
+    recrawled: [],
     results: {},
   };
 }
@@ -258,11 +263,28 @@ async function main() {
   await writeEdges(proposal.edges);
 
   const queue = proposal.accepted.map((row) => row.entity).filter((entity) => !progress.completed.includes(entity.slug));
+  const sourceCounts = new Map<string, number>();
+  for (const source of graph.sources) {
+    const id = topicIdFromSource(source);
+    if (!id) continue;
+    sourceCounts.set(id, (sourceCounts.get(id) ?? 0) + 1);
+  }
+  const recrawled = new Set(progress.recrawled ?? []);
+  const queued = new Set(queue.map((entity) => entity.slug));
+  for (const entity of getFrontierSeedEntities()) {
+    if (queued.has(entity.slug) || recrawled.has(entity.slug)) continue;
+    const topic = graph.topics.find((row) => row.slug === entity.slug);
+    if (!topic) continue;
+    if ((sourceCounts.get(topic.id) ?? 0) > 0) continue;
+    queue.push(entity);
+    queued.add(entity.slug);
+  }
 
   log({
     event: "start",
     sha: progress.sha,
     queue: queue.length,
+    recrawl: queue.filter((entity) => progress.completed.includes(entity.slug)).length,
     duplicatesRejected: progress.duplicatesRejected,
     urlsAtStart: progress.urlsAtStart,
     topicsAtStart: progress.topicsAtStart,
@@ -293,7 +315,8 @@ async function main() {
       });
       result.createdStub = createdStub;
       progress.results[entity.slug] = result;
-      progress.completed.push(entity.slug);
+      if (!progress.completed.includes(entity.slug)) progress.completed.push(entity.slug);
+      if (!progress.recrawled.includes(entity.slug)) progress.recrawled.push(entity.slug);
       progress.gatewayVehicleCostUsd += result.gatewayCostUsd;
       sessionSpendUsd += result.gatewayCostUsd;
       progress.errors.push(...result.errors);

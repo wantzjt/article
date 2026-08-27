@@ -58,6 +58,9 @@ const CHILD_PATTERNS: Array<[Facet, string, RegExp]> = [
   ["regulatory", "safety", /\b(ai safety|safety institute|\baisi\b)\b/i],
   ["regulatory", "china", /\b(china|chinese|prc)\b/i],
   ["economic", "funding", /\b(series [a-d]|raised|funding round|ipo)\b/i],
+  ["economic", "capex", /\b(gigawatt|data center|campus|capex|construction jobs)\b/i],
+  ["products", "chatgpt", /\bchatgpt\b/i],
+  ["partnerships", "compute", /\b(coreweave|neocloud|gpu cloud|oracle|microsoft azure)\b/i],
 ];
 
 /** Heuristic facet for v0. Compiler facets come later; this only ranks. */

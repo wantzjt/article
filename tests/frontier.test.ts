@@ -46,6 +46,28 @@ describe("graph-driven frontier", () => {
     expect(knownTopicKeys(graph).has("nvidia")).toBe(true);
   });
 
+  it("does not treat a person's employer alias as a duplicate topic", () => {
+    const graph = emptyGraph();
+    graph.topics.push({
+      id: "topic_amd",
+      slug: "amd",
+      name: "AMD",
+      entityType: "company",
+      kind: "company",
+      description: "Accelerators.",
+      aliases: ["Advanced Micro Devices"],
+      officialDomains: ["amd.com"],
+      status: "stub",
+      createdAt: "t",
+      updatedAt: "t",
+      lastVerifiedAt: null,
+      lastMaterialChangeAt: null,
+    });
+    const result = proposeFrontier(graph);
+    expect(result.accepted.some((row) => row.entity.slug === "lisa-su")).toBe(true);
+    expect(result.rejected.some((row) => row.entity.slug === "lisa-su")).toBe(false);
+  });
+
   it("loads frontier seeds into the ocean entity list", () => {
     expect(getFrontierSeedEntities().some((row) => row.slug === "robotics")).toBe(true);
     expect(getOceanEntities().some((row) => row.slug === "bis-export-controls")).toBe(true);

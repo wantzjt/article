@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentProfile } from "@/lib/auth/current-user";
 import { SendFrequencyButton } from "@/components/send-frequency-button";
+import { changeKindLabel } from "@/lib/compiler/change-engine";
 import { loadClassifications } from "@/lib/frequency/classify";
 import { changeCopy } from "@/lib/frequency/changes";
 import { renderProfileMorning } from "@/lib/frequency/morning";
@@ -39,7 +40,10 @@ export default async function FrequencyPreviewPage() {
               <Link href={`/topic/${row.slug}#what-changed`} className="font-serif text-[1.0625rem] leading-6 hover:underline">
                 {row.name}
               </Link>
-              <p className="meta mt-1">{row.breakthrough ? "material" : row.facet}</p>
+              <p className="meta mt-1">
+                {row.changeKind ? `${changeKindLabel(row.changeKind)} · ` : ""}
+                {row.breakthrough ? "material" : row.facet}
+              </p>
               <p className="mt-1 text-[0.9375rem] leading-6">{changeCopy(row)}</p>
             </li>
           ))}

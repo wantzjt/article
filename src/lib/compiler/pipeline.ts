@@ -24,6 +24,8 @@ import { failClosedStatus, graduateTopic, shouldPublishBrief, STRONG_MIN_CLAIMS 
 import { acceptVerifyObject, shouldRunExtract, statusAfterRenderTimeout } from "./fail-closed";
 import { detectMaterialChange } from "./versions";
 import { detectClaimChanges } from "./change-engine";
+import { neighborTopicIds } from "./graph-edges";
+import { classifyCoordinates } from "@/lib/frequency/facets";
 import { assertUnderModelCap, ModelSpendCapError } from "./spend";
 import { logPipeline } from "./logger";
 import {
@@ -384,6 +386,10 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
           }
           const now = new Date().toISOString();
           const matched = findMatchingClaim(verdict.candidate.claimText, [...knownClaims, ...accepted]);
+          const coordinates = classifyCoordinates({
+            kind: topicKind(entity),
+            text: `${entity.name} ${verdict.candidate.claimText}`,
+          });
           const claim: ClaimRecord = matched
             ? {
                 ...matched,
@@ -391,6 +397,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
                 lastVerifiedAt: now,
                 updatedAt: now,
                 status: matched.status === "rejected" ? "unresolved" : matched.status,
+                coordinates,
               }
             : {
                 id: randomUUID(),
@@ -403,6 +410,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
                 supersededAt: null,
                 createdAt: now,
                 updatedAt: now,
+                coordinates,
               };
           accepted.push(claim);
           financeKindByClaimId.set(claim.id, verdict.candidate.financeKind ?? null);
@@ -471,12 +479,14 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
 
     const allClaims = await store.listClaimsForTopic(topic.id);
     const allLinks = await store.listClaimSources(allClaims.map((claim) => claim.id));
+    const snapshot = await store.getGraph();
     await store.addChanges(
       detectClaimChanges({
         topicId: topic.id,
         before: existingClaims,
         after: allClaims,
         links: allLinks,
+        relatedTopicIds: [...neighborTopicIds(snapshot.edges ?? [], topic.id)],
       }),
     );
     const prior = await store.latestVersion(topic.id);

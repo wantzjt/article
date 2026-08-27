@@ -253,6 +253,9 @@ describe("pulse radar index", () => {
     expect(controls).toMatch(/More/);
     expect(dossier).toMatch(/What changed/);
     expect(dossier).toMatch(/Current state/);
+    expect(dossier).toMatch(/changeKindLabel/);
+    const morning = readFileSync(path.join(process.cwd(), "src/app/frequency/preview/page.tsx"), "utf8");
+    expect(morning).toMatch(/changeKindLabel/);
     expect(dossier).toMatch(/GroundedAsk/);
     expect(dossier).toMatch(/FrequencyControls/);
     expect(dossier).toMatch(/>\s*Ask\s*</);

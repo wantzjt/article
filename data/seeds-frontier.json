@@ -28,5 +28,22 @@
   { "slug": "anthropic-economic-index", "name": "Anthropic Economic Index", "entityType": "research", "kind": "concept", "description": "Anthropic research on AI and labor.", "aliases": [], "officialDomains": ["anthropic.com"] },
   { "slug": "anduril", "name": "Anduril", "entityType": "company", "description": "Defense technology company; AI and autonomous systems.", "aliases": ["Anduril Industries"], "officialDomains": ["anduril.com"] },
   { "slug": "palantir", "name": "Palantir", "entityType": "company", "description": "AIP and defense/enterprise data platforms.", "aliases": ["Palantir AIP"], "officialDomains": ["palantir.com"] },
-  { "slug": "spacex", "name": "SpaceX", "entityType": "company", "description": "Launch and satellite company adjacent to xAI compute.", "aliases": ["Starlink"], "officialDomains": ["spacex.com"] }
+  { "slug": "spacex", "name": "SpaceX", "entityType": "company", "description": "Launch and satellite company adjacent to xAI compute.", "aliases": ["Starlink"], "officialDomains": ["spacex.com"] },
+  { "slug": "sora", "name": "Sora", "entityType": "model", "kind": "product", "description": "OpenAI video generation model.", "aliases": ["Sora 2"], "officialDomains": ["openai.com"] },
+  { "slug": "openai-codex", "name": "OpenAI Codex", "entityType": "model", "kind": "product", "description": "OpenAI coding agent and Codex product line.", "aliases": ["Codex"], "officialDomains": ["openai.com"] },
+  { "slug": "thinking-machines", "name": "Thinking Machines Lab", "entityType": "lab", "description": "Mira Murati's frontier lab.", "aliases": ["Thinking Machines"], "officialDomains": ["thinkingmachines.ai"] },
+  { "slug": "safe-superintelligence", "name": "Safe Superintelligence", "entityType": "lab", "description": "Ilya Sutskever's SSI lab.", "aliases": ["SSI"], "officialDomains": ["ssi.inc"] },
+  { "slug": "world-labs", "name": "World Labs", "entityType": "lab", "description": "Fei-Fei Li's spatial intelligence lab.", "aliases": ["World Labs AI"], "officialDomains": ["worldlabs.ai"] },
+  { "slug": "colossus", "name": "Colossus", "entityType": "infra", "kind": "product", "description": "xAI Colossus supercluster in Memphis.", "aliases": ["xAI Colossus"], "officialDomains": ["x.ai"] },
+  { "slug": "nebius", "name": "Nebius", "entityType": "company", "description": "GPU cloud and AI infrastructure provider.", "aliases": ["Nebius Group"], "officialDomains": ["nebius.com"] },
+  { "slug": "applied-digital", "name": "Applied Digital", "entityType": "company", "description": "AI data center developer; CoreWeave and hyperscaler campuses.", "aliases": ["APLD"], "officialDomains": ["applieddigital.com"] },
+  { "slug": "cursor", "name": "Cursor", "entityType": "company", "kind": "product", "description": "Anysphere's AI code editor.", "aliases": ["Anysphere"], "officialDomains": ["cursor.com"] },
+  { "slug": "cognition-devin", "name": "Devin", "entityType": "company", "kind": "product", "description": "Cognition's software engineering agent.", "aliases": ["Cognition AI"], "officialDomains": ["cognition.ai"] },
+  { "slug": "black-forest-labs", "name": "Black Forest Labs", "entityType": "lab", "description": "Flux image model lab.", "aliases": ["FLUX"], "officialDomains": ["blackforestlabs.ai"] },
+  { "slug": "nvidia-omniverse", "name": "NVIDIA Omniverse", "entityType": "infra", "kind": "product", "description": "NVIDIA Omniverse simulation and digital twin platform.", "aliases": ["Omniverse"], "officialDomains": ["nvidia.com"] },
+  { "slug": "nvidia-cosmos", "name": "NVIDIA Cosmos", "entityType": "model", "kind": "product", "description": "NVIDIA Cosmos world foundation models.", "aliases": ["Cosmos WFM"], "officialDomains": ["nvidia.com"] },
+  { "slug": "mira-murati", "name": "Mira Murati", "entityType": "lab", "kind": "person", "description": "Founder of Thinking Machines Lab; former OpenAI CTO.", "aliases": ["Thinking Machines"], "officialDomains": [] },
+  { "slug": "ilya-sutskever", "name": "Ilya Sutskever", "entityType": "lab", "kind": "person", "description": "Co-founder of Safe Superintelligence.", "aliases": ["SSI"], "officialDomains": [] },
+  { "slug": "github-copilot", "name": "GitHub Copilot", "entityType": "model", "kind": "product", "description": "Microsoft GitHub Copilot coding agent.", "aliases": ["Copilot"], "officialDomains": ["github.com"] },
+  { "slug": "veo-3", "name": "Veo", "entityType": "model", "kind": "product", "description": "Google DeepMind Veo video model.", "aliases": ["Veo 3"], "officialDomains": ["deepmind.google"] }
 ]

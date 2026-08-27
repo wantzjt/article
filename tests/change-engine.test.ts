@@ -104,4 +104,17 @@ describe("multi-facet coordinates", () => {
     expect(coords.some((row) => row.child === "gpus")).toBe(true);
     expect(coords.some((row) => row.child === "export-controls" || row.child === "china")).toBe(true);
   });
+
+  it("tags capex and ChatGPT children", () => {
+    const capex = classifyCoordinates({
+      kind: "company",
+      text: "OpenAI will take 8 gigawatts at a data center campus creating construction jobs",
+    });
+    expect(capex.some((row) => row.child === "capex")).toBe(true);
+    const product = classifyCoordinates({
+      kind: "product",
+      text: "ChatGPT Ads will expand to Europe",
+    });
+    expect(product.some((row) => row.child === "chatgpt")).toBe(true);
+  });
 });

@@ -6,6 +6,7 @@ import { StatusChip } from "@/components/status-chip";
 import { TopicPlay } from "@/components/topic-play";
 import type { Facet } from "@/lib/frequency/facets";
 import type { ClaimWithEvidence, TopicGraph } from "@/lib/store/graph";
+import { changeKindLabel } from "@/lib/compiler/change-engine";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import {
   displayDek,
@@ -69,10 +70,20 @@ function SourceList({ claim, slug }: { claim: ClaimWithEvidence; slug: string })
   );
 }
 
-function ClaimRow({ graph, claim }: { graph: TopicGraph; claim: ClaimWithEvidence }) {
+function ClaimRow({
+  graph,
+  claim,
+  changeKind,
+}: {
+  graph: TopicGraph;
+  claim: ClaimWithEvidence;
+  changeKind?: string | null;
+}) {
+  const kind = changeKind ? changeKindLabel(changeKind) : "";
   return (
     <article className="border-b border-rule py-3 last:border-0">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {kind ? <span className="meta">{kind}</span> : null}
         <StatusChip status={claim.status} />
         <span className="meta">{evidenceLabel(graph, claim.id)}</span>
         {claim.coordinates?.some((row) => row.child) ? (
@@ -173,6 +184,10 @@ export function TopicView({
   const changedIds = new Set((typedIds.length ? typedIds : briefIds).slice(0, 3));
   const changed = accepted.filter((claim) => changedIds.has(claim.id));
   const whatChanged = changed;
+  const kindByClaim = new Map<string, string>();
+  for (const event of [...(graph.changes ?? [])].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+    if (event.claimId) kindByClaim.set(event.claimId, event.kind);
+  }
   const standing = accepted.filter(
     (claim) => !whatChanged.some((row) => row.id === claim.id) && claim.status !== "disputed",
   );
@@ -236,7 +251,9 @@ export function TopicView({
             {whatChanged.length === 0 ? (
               <Empty>Nothing material moved here just now.</Empty>
             ) : (
-              whatChanged.map((claim) => <ClaimRow key={claim.id} graph={graph} claim={claim} />)
+              whatChanged.map((claim) => (
+                <ClaimRow key={claim.id} graph={graph} claim={claim} changeKind={kindByClaim.get(claim.id)} />
+              ))
             )}
           </Section>
 
