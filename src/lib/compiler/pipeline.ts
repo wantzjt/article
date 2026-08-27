@@ -3,6 +3,7 @@ import { PRIMARY_MODEL } from "@/lib/env";
 import { generateStructured, generateWithExaSearch } from "@/lib/gateway/ai";
 import { collectExaSources, exaSearchTool } from "@/lib/gateway/exa";
 import { getEntityBySlug } from "@/lib/seed/entities";
+import { compileAllowed, CompileSkipError } from "./compile-priority";
 import { topicKind } from "./taxonomy";
 import { classifySource } from "./primary";
 import { canonicalizeUrl } from "./urls";
@@ -54,6 +55,7 @@ function daysAgoIso(days: number): string {
 export async function ingestTopic(slug: string): Promise<{ topicId: string; runId: string }> {
   const entity = getEntityBySlug(slug);
   if (!entity) throw new Error(`Unknown seed entity: ${slug}`);
+  if (!compileAllowed(entity)) throw new CompileSkipError(slug);
 
   const runId = randomUUID();
   const started = Date.now();

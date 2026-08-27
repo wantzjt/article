@@ -1,3 +1,5 @@
+import { compileBlocked } from "./compile-priority";
+
 export const NIGHT_TZ = "America/Chicago";
 export const NIGHT_STOP_HOUR = 6;
 export const NIGHT_SPEND_CEILING_USD = 6.5;
@@ -100,7 +102,7 @@ export function buildNightQueue(input: {
   officialSourceCount?: Record<string, number>;
   demoSlug?: string;
 }): string[] {
-  const seeds = new Set(input.seedSlugs);
+  const seeds = new Set(input.seedSlugs.filter((slug) => !compileBlocked(slug)));
   const seen = new Set<string>();
   const queue: string[] = [];
   for (const slug of input.prioritySlugs ?? NIGHT_PRIORITY_SLUGS) {
@@ -109,7 +111,7 @@ export function buildNightQueue(input: {
     seen.add(slug);
   }
   const density = input.officialSourceCount ?? {};
-  const rest = input.seedSlugs
+  const rest = [...seeds]
     .filter((slug) => !seen.has(slug))
     .sort((a, b) => (density[b] ?? 0) - (density[a] ?? 0) || a.localeCompare(b));
   const demo = input.demoSlug ?? "glm-5-3";
