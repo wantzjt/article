@@ -233,10 +233,11 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
     let persistedClaims: ClaimRecord[] = [];
     const compileDeadline = Date.now() + TOPIC_COMPILE_BUDGET_MS;
     const acceptedExisting = existingClaims.filter((claim) => claim.status !== "rejected");
+    const skipExtractMin = Number(process.env.COMPILE_SKIP_EXTRACT_MIN ?? STRONG_MIN_CLAIMS);
     const skipExtract = shouldSkipExtract({
       acceptedClaimCount: acceptedExisting.length,
       changedSourceCount: changedSources.length,
-      strongMinClaims: STRONG_MIN_CLAIMS,
+      strongMinClaims: Number.isFinite(skipExtractMin) && skipExtractMin > 0 ? skipExtractMin : STRONG_MIN_CLAIMS,
     });
     if (skipExtract) {
       logPipeline({

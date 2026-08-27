@@ -26,7 +26,7 @@ export function FrequencyList({
 
   return (
     <div data-frequency-order={orderKey} className={restream ? "frequency-restream" : undefined}>
-      {restream ? <p className="meta mt-2">Your Frequency reordered. The underlying claims did not change.</p> : null}
+      {restream ? <p className="meta mt-2">Your Frequency updated. The underlying claims did not change.</p> : null}
       {children}
     </div>
   );

@@ -6,6 +6,17 @@ import { FACETS, type Facet } from "@/lib/frequency/facets";
 
 type Follow = { muted: boolean } | null;
 
+const STEPS: Array<{ label: string; weight: number }> = [
+  { label: "Less", weight: -2 },
+  { label: "Normal", weight: 0 },
+  { label: "More", weight: 2 },
+];
+
+function stepFromWeight(weight: number | undefined): number {
+  if (!weight) return 0;
+  return weight < 0 ? -2 : 2;
+}
+
 export function FrequencyControls({
   slug,
   signedIn,
@@ -19,6 +30,7 @@ export function FrequencyControls({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [open, setOpen] = useState(false);
   const [weights, setWeights] = useState(facets);
   const next = `/topic/${slug}`;
 
@@ -51,9 +63,7 @@ export function FrequencyControls({
       <div className="flex flex-wrap gap-4">
         {follow ? (
           <>
-            <span className="inline-flex min-h-11 items-center font-mono text-[12px]/[16px] text-ink">
-              Following
-            </span>
+            <span className="inline-flex min-h-11 items-center font-mono text-[12px]/[16px] text-ink">Following</span>
             <button
               type="button"
               disabled={pending}
@@ -61,6 +71,14 @@ export function FrequencyControls({
               className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink disabled:opacity-50"
             >
               Unfollow
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setOpen((value) => !value)}
+              className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink"
+            >
+              Tune
             </button>
             <button
               type="button"
@@ -84,38 +102,35 @@ export function FrequencyControls({
           </button>
         )}
       </div>
-      {follow && !follow.muted ? (
+      {follow && !follow.muted && open ? (
         <div className="space-y-2">
-          <p className="meta">Tune down is quieter, not hidden.</p>
+          <p className="meta">Less is quieter, not hidden.</p>
           {FACETS.map((facet) => {
-            const value = weights[facet] ?? 0;
+            const value = stepFromWeight(weights[facet]);
             return (
-              <label key={facet} className="flex items-center gap-3">
+              <div key={facet} className="flex flex-wrap items-center gap-3">
                 <span className="meta w-28 shrink-0">{facet}</span>
-                <input
-                  type="range"
-                  min={-2}
-                  max={2}
-                  step={1}
-                  value={value}
-                  disabled={pending}
-                  aria-label={`${facet} ${value}`}
-                  className="min-w-0 flex-1 accent-[var(--ink)]"
-                  onChange={(event) => {
-                    const nextWeight = Number(event.currentTarget.value);
-                    setWeights((prev) => ({ ...prev, [facet]: nextWeight }));
-                  }}
-                  onPointerUp={(event) => {
-                    const nextWeight = Number(event.currentTarget.value);
-                    void post("/api/frequency/facets", { slug, facet, weight: nextWeight });
-                  }}
-                  onKeyUp={(event) => {
-                    const nextWeight = Number(event.currentTarget.value);
-                    void post("/api/frequency/facets", { slug, facet, weight: nextWeight });
-                  }}
-                />
-                <span className="meta w-6 text-right">{value > 0 ? `+${value}` : value}</span>
-              </label>
+                <div className="flex gap-3">
+                  {STEPS.map((step) => (
+                    <button
+                      key={step.label}
+                      type="button"
+                      disabled={pending}
+                      aria-pressed={value === step.weight}
+                      aria-label={`${facet} ${step.label}`}
+                      className={`inline-flex min-h-11 items-center font-mono text-[12px]/[16px] disabled:opacity-50 ${
+                        value === step.weight ? "border-b border-ink text-ink" : "text-ink-quiet hover:text-ink"
+                      }`}
+                      onClick={() => {
+                        setWeights((prev) => ({ ...prev, [facet]: step.weight }));
+                        void post("/api/frequency/facets", { slug, facet, weight: step.weight });
+                      }}
+                    >
+                      {step.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             );
           })}
         </div>

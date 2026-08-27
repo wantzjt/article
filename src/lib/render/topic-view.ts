@@ -241,12 +241,22 @@ export function movedToday(iso: string | null, now = new Date()): boolean {
   return iso.slice(0, 10) === now.toISOString().slice(0, 10);
 }
 
+/** Fresh enough to mark as New — two hours. */
+export function isFreshChange(iso: string | null, now = new Date(), hours = 2): boolean {
+  if (!iso) return false;
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return false;
+  return now.getTime() - then < hours * 3_600_000;
+}
+
 export function formatRelative(iso: string | null, now = new Date()): string {
   if (!iso) return "—";
   const then = Date.parse(iso);
   if (!Number.isFinite(then)) return "—";
-  const hours = Math.max(0, Math.floor((now.getTime() - then) / 3_600_000));
-  if (hours < 1) return "just now";
+  const minutes = Math.max(0, Math.floor((now.getTime() - then) / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 14) return `${days}d ago`;

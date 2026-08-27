@@ -7,6 +7,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const indexable = topics.filter((topic) => topic.status === "strong");
   return [
     { url: brand.siteUrl, changeFrequency: "hourly", priority: 1 },
+    { url: `${brand.siteUrl}/explore`, changeFrequency: "hourly" },
+    { url: `${brand.siteUrl}/search`, changeFrequency: "weekly" },
+    { url: `${brand.siteUrl}/start`, changeFrequency: "weekly" },
     { url: `${brand.siteUrl}/methodology`, changeFrequency: "monthly" },
     { url: `${brand.siteUrl}/corrections`, changeFrequency: "monthly" },
     ...indexable.map((topic) => ({

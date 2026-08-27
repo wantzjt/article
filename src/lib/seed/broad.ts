@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { SeedEntity } from "@/lib/compiler/types";
 import { SEED_ENTITIES } from "./entities";
+import { getFrontierSeedEntities } from "./frontier";
 import { getPersonSeedEntities } from "./people";
 
 const BROAD_PATH = path.join(process.cwd(), "data", "seeds-broad.json");
@@ -23,7 +24,12 @@ export function getBroadSeedEntities(): SeedEntity[] {
 export function getOceanEntities(): SeedEntity[] {
   const seen = new Set<string>();
   const out: SeedEntity[] = [];
-  for (const row of [...SEED_ENTITIES, ...getBroadSeedEntities(), ...getPersonSeedEntities()]) {
+  for (const row of [
+    ...SEED_ENTITIES,
+    ...getBroadSeedEntities(),
+    ...getPersonSeedEntities(),
+    ...getFrontierSeedEntities(),
+  ]) {
     if (seen.has(row.slug)) continue;
     seen.add(row.slug);
     out.push(row);

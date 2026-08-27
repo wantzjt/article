@@ -21,6 +21,7 @@ import {
   OCEAN_HARD_STOP,
   PRIMARY_MODEL,
 } from "../src/lib/env";
+import { compileAllowed } from "../src/lib/compiler/compile-priority";
 import { LAUNCH_DEMO_SLUG, SEED_ENTITIES } from "../src/lib/seed/entities";
 import { getGraph, getTopicBySlug, modelSpendTodayUsd } from "../src/lib/store/json-store";
 
@@ -205,7 +206,7 @@ async function main() {
     ).length;
   }
   const queue = buildNightQueue({
-    seedSlugs: SEED_ENTITIES.map((entity) => entity.slug),
+    seedSlugs: SEED_ENTITIES.filter((entity) => compileAllowed(entity)).map((entity) => entity.slug),
     prioritySlugs: NIGHT_PRIORITY_SLUGS,
     officialSourceCount,
     demoSlug: LAUNCH_DEMO_SLUG,

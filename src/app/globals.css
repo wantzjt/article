@@ -223,4 +223,7 @@
   .frequency-restream li {
     animation: frequency-restream 900ms ease-out;
   }
+  .world-fresh {
+    animation: frequency-restream 900ms ease-out;
+  }
 }

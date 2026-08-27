@@ -58,6 +58,7 @@ export const SEED_ENTITIES: SeedEntity[] = [
   { slug: "eu-ai-act", name: "EU AI Act", entityType: "policy", description: "European Union AI regulation.", aliases: ["Artificial Intelligence Act"], officialDomains: ["europa.eu"] },
   { slug: "nist-ai-rmf", name: "NIST AI RMF", entityType: "policy", description: "US NIST AI Risk Management Framework.", aliases: ["AI RMF"], officialDomains: ["nist.gov"] },
   { slug: "ca-sb-53", name: "California AI bills", entityType: "policy", description: "California frontier-model legislation.", aliases: ["SB 53", "SB 1047"], officialDomains: ["ca.gov"] },
+  { slug: "robotics", name: "Robotics", entityType: "research", kind: "concept", description: "Humanoid and industrial robots, and the labs building them.", aliases: ["humanoid robotics"], officialDomains: [] },
   { slug: "uk-aisi", name: "UK AISI", entityType: "policy", description: "UK AI Security Institute.", aliases: ["AISI"], officialDomains: ["aisi.gov.uk", "gov.uk"] },
   { slug: "nyt-v-openai", name: "NYT v. OpenAI", entityType: "policy", description: "Copyright litigation over training data.", aliases: ["New York Times v OpenAI"], officialDomains: ["nytimes.com"] },
 ];

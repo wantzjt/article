@@ -49,5 +49,10 @@ next-env.d.ts
 /data/ocean-night.lock
 /data/ocean-exa-progress.json
 /data/ocean-exa.lock
+/data/ocean-blitz-progress.json
+/data/ocean-blitz.lock
+/data/frontier-edges.json
+/artifacts/blitz-report.json
+/artifacts/blitz-report.md
 /artifacts/ocean-night-report.json
 /artifacts/OCEAN_REPORT.md

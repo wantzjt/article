@@ -65,7 +65,8 @@ describe("grounded ask", () => {
     expect(questions).toMatch(/Show the source\./);
     expect(ask).toMatch(/ASK_QUESTIONS/);
     expect(ask).not.toMatch(/textarea/);
-    expect(home).toMatch(/Claims come before prose/);
+    expect(home).not.toMatch(/textarea/);
+    expect(home).toMatch(/Your Frequency/);
     expect(isAudioTopic("glm-5-3")).toBe(true);
     expect(isAudioTopic("ca-sb-53")).toBe(false);
   });

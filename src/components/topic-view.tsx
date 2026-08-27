@@ -12,7 +12,9 @@ import {
   evidenceLabel,
   formatCount,
   formatDate,
+  formatRelative,
   formatTime,
+  isFreshChange,
   lastRetrievedAt,
   latestEvidence,
   namesAlign,
@@ -152,7 +154,6 @@ export function TopicView({
     ? changed
     : accepted.filter((claim) => claim.status === "supported").slice(0, 3);
   const stub = graph.topic.status === "stub";
-  const indexed = graph.topic.status === "strong";
   const hasClaims = accepted.length > 0;
   const identity = personIdentity(graph.topic.entityMeta);
   const identityFits = Boolean(
@@ -162,17 +163,14 @@ export function TopicView({
   const recent = latestEvidence(graph.sources);
   const remainder = warehouseSourceList(graph.sources, graph.sources.length).slice(recent.length);
   const lastSource = lastRetrievedAt(graph.sources);
+  const updatedAt = graph.topic.lastMaterialChangeAt ?? graph.topic.lastVerifiedAt ?? lastSource;
   const affiliation =
     identityFits && identity ? [identity.role, identity.company].filter(Boolean).join(" · ") : "";
 
   return (
     <div className="space-y-8">
       <header className="space-y-3">
-        <p className="kicker">
-          Dossier
-          {" · "}
-          {kind}
-        </p>
+        <p className="kicker">{kind}</p>
         <h1 className={stub && graph.sources.length === 0 ? "font-serif text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
           {graph.topic.name}
         </h1>
@@ -181,35 +179,33 @@ export function TopicView({
         ) : hasClaims ? (
           <p className="max-w-prose text-[0.9375rem] leading-6">{displayDek(graph.topic.description)}</p>
         ) : null}
-        <div className="space-y-2">
-          <p className="meta flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <StatusChip status={graph.topic.status} />
-            <span>{formatCount(accepted.length)} claims</span>
-            <span>{formatCount(graph.sources.length)} sources</span>
+        <p className="meta">
+          Updated {formatRelative(updatedAt)}
+          {isFreshChange(updatedAt) ? " · ● New" : ""}
+        </p>
+        {frequency ? (
+          <FrequencyControls
+            slug={graph.topic.slug}
+            signedIn={frequency.signedIn}
+            follow={frequency.follow}
+            facets={frequency.facets}
+          />
+        ) : null}
+        {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
+        <p className="meta">
+          <StatusChip status={graph.topic.status} />
+          {" · "}
+          {formatCount(graph.sources.length)} sources
+        </p>
+        {hasClaims ? null : (
+          <p className="meta">
+            {graph.sources.length > 0
+              ? "Sources banked · not compiled"
+              : stub
+                ? "Sources still arriving."
+                : `${graph.topic.status} · no compiled claims`}
           </p>
-          <p className="meta">last verified {formatTime(graph.topic.lastVerifiedAt)}</p>
-          {hasClaims ? null : (
-            <p className="meta">
-              {graph.sources.length > 0
-                ? "Sources banked · not compiled"
-                : stub
-                  ? "Stub · no sources banked yet"
-                  : `${graph.topic.status} · no compiled claims`}
-            </p>
-          )}
-          {indexed ? null : hasClaims ? (
-            <p className="meta">This topic is {graph.topic.status} and is not indexed.</p>
-          ) : null}
-          {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
-          {frequency ? (
-            <FrequencyControls
-              slug={graph.topic.slug}
-              signedIn={frequency.signedIn}
-              follow={frequency.follow}
-              facets={frequency.facets}
-            />
-          ) : null}
-        </div>
+        )}
       </header>
 
       {hasClaims ? (

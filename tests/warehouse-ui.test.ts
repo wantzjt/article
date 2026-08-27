@@ -221,26 +221,32 @@ describe("pulse radar index", () => {
     ]);
   });
 
-  it("explore is pulse/radar/index, not a coverage dump", () => {
+  it("explore is The World and Frequency, not a glossary", () => {
     const home = readFileSync(path.join(process.cwd(), "src/app/page.tsx"), "utf8");
+    const feed = readFileSync(path.join(process.cwd(), "src/components/world-feed.tsx"), "utf8");
+    const header = readFileSync(path.join(process.cwd(), "src/components/site-header.tsx"), "utf8");
     const dossier = readFileSync(path.join(process.cwd(), "src/components/topic-view.tsx"), "utf8");
+    const controls = readFileSync(path.join(process.cwd(), "src/components/frequency-controls.tsx"), "utf8");
     const methodology = readFileSync(path.join(process.cwd(), "src/app/methodology/page.tsx"), "utf8");
     const llms = readFileSync(path.join(process.cwd(), "src/app/llms.txt/route.ts"), "utf8");
     expect(home).toMatch(/Your Frequency/);
-    expect(home).toMatch(/The world/);
-    expect(home).toMatch(/#what-changed/);
-    expect(home).toMatch(/world moved/);
-    expect(home).toMatch(/Radar/);
-    expect(home).toMatch(/Index/);
-    expect(home).toMatch(/Claims come before prose/);
-    expect(home).toMatch(/not a content mill/);
-    expect(home).not.toMatch(/>Coverage</);
-    expect(home).not.toMatch(/All topics/);
-    expect(home).not.toMatch(/stub — sources banked/);
+    expect(home).toMatch(/The World/);
+    expect(home).toMatch(/Build my Frequency/);
+    expect(feed).toMatch(/#what-changed/);
+    expect(home).not.toMatch(/Radar/);
+    expect(home).not.toMatch(/Index/);
+    expect(home).not.toMatch(/Claims come before prose/);
+    expect(header).toMatch(/Your Frequency/);
+    expect(header).toMatch(/Explore/);
+    expect(header).toMatch(/Search/);
+    expect(header).not.toMatch(/Methodology/);
+    expect(controls).toMatch(/Less/);
+    expect(controls).toMatch(/More/);
     expect(dossier).toMatch(/Latest evidence/);
     expect(dossier).toMatch(/All sources/);
     expect(dossier).toMatch(/GroundedAsk/);
     expect(dossier).toMatch(/Sources banked · not compiled/);
+    expect(dossier).toMatch(/FrequencyControls/);
     expect(dossier).not.toMatch(/claimText: source/);
     expect(methodology).toMatch(/Last retrieved/);
     expect(methodology).toMatch(/Frequency is a projection of this graph/);
