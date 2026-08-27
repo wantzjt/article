@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assembleTopic, emptyGraph, topicIdFromSource } from "@/lib/store/graph";
 import {
+  namesAlign,
   personIdentity,
   warehouseCoverage,
   warehouseInventory,
@@ -94,6 +95,11 @@ describe("person identity from entity_meta", () => {
   it("returns null when there is no public person payload", () => {
     expect(personIdentity(null)).toBeNull();
     expect(personIdentity({ exa_entity_id: "company_x", exa_type: "company", name: "Floodgate" })).toBeNull();
+  });
+
+  it("does not treat a different Exa person as the topic", () => {
+    expect(namesAlign("Lenny Pruss", "Sam Dore")).toBe(false);
+    expect(namesAlign("Ann Miura-Ko", "Ann Miura-Ko")).toBe(true);
   });
 });
 

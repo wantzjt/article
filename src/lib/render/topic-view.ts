@@ -179,6 +179,14 @@ function workEntry(row: unknown): { title: string | null; company: string | null
   return { title, company, current };
 }
 
+export function namesAlign(left: string, right: string): boolean {
+  const n = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const a = n(left);
+  const b = n(right);
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
 /** Public role line from persisted Exa entity_meta. Empty fields stay empty — no invented bio. */
 export function personIdentity(meta: TopicEntityMeta | null | undefined): PersonIdentity | null {
   if (!meta || meta.exa_type !== "person") return null;

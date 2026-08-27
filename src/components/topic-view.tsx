@@ -11,6 +11,7 @@ import {
   formatDate,
   formatTime,
   lastRetrievedAt,
+  namesAlign,
   personIdentity,
   shortExcerpt,
   warehouseSourceList,
@@ -145,10 +146,13 @@ export function TopicView({
   const indexed = graph.topic.status === "strong";
   const hasClaims = accepted.length > 0;
   const identity = personIdentity(graph.topic.entityMeta);
+  const identityFits = Boolean(
+    identity && (!identity.name || namesAlign(identity.name, graph.topic.name)),
+  );
   const kind = topicKind(graph.topic);
   const banked = warehouseSourceList(graph.sources);
   const lastSource = lastRetrievedAt(graph.sources);
-  const identityBits = identity
+  const identityBits = identityFits && identity
     ? [identity.role, identity.company, identity.location].filter(Boolean)
     : [];
 
@@ -157,7 +161,7 @@ export function TopicView({
       <header className="space-y-3">
         <p className="kicker">{kind}</p>
         <h1 className={stub && graph.sources.length === 0 ? "font-serif text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
-          {identity?.name || graph.topic.name}
+          {graph.topic.name}
         </h1>
         {identityBits.length > 0 ? (
           <p className="meta">{identityBits.join(" · ")}</p>
