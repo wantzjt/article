@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const graph = await getTopicBySlug(slug);
   if (!graph) return { title: "Not found" };
-  const robots = robotsForStatus(graph.topic.status);
+  const robots = robotsForStatus(graph.topic.status, graph.topic.slug);
   return {
     title: graph.topic.name,
     description: graph.topic.description,

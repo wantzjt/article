@@ -65,6 +65,9 @@ export const SEED_ENTITIES: SeedEntity[] = [
 export const LAUNCH_DEMO_SLUG =
   SEED_ENTITIES.find((entity) => entity.launchDemo)?.slug ?? "glm-5-3";
 
+/** Homepage Pulse pin order. Play is glm-5-3 only. */
+export const DEMO_LAUNCH_SLUGS = ["ca-sb-53", "glm-5-3", "coreweave", "eu-ai-act"] as const;
+
 export function getEntityBySlug(slug: string): SeedEntity | undefined {
   return SEED_ENTITIES.find((row) => row.slug === slug) ?? FINANCE_SEED_ENTITIES.find((row) => row.slug === slug);
 }

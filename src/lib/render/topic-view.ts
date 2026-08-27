@@ -1,9 +1,11 @@
 import { brand } from "@/lib/brand";
+import { compileBlocked } from "@/lib/compiler/compile-priority";
 import type { TopicEntityMeta } from "@/lib/compiler/types";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import type { GraphSnapshot, TopicGraph } from "@/lib/store/graph";
 import { topicIdFromSource } from "@/lib/store/graph";
 import { robotsForStatus } from "@/lib/compiler/publication";
+import { DEMO_LAUNCH_SLUGS } from "@/lib/seed/entities";
 import type { SourceRecord, TopicRecord } from "@/lib/compiler/types";
 
 export function formatDate(iso: string | null): string {
@@ -212,6 +214,18 @@ export const RADAR_LIMIT = 12;
 export const LATEST_EVIDENCE_LIMIT = 5;
 export const WAREHOUSE_SOURCE_PAGE_LIMIT = 40;
 
+const DEMO_PULSE_ORDER = new Map<string, number>(DEMO_LAUNCH_SLUGS.map((slug, index) => [slug, index]));
+
+export function isDemoLaunchSlug(slug: string): boolean {
+  return DEMO_PULSE_ORDER.has(slug);
+}
+
+export function onPulse(topic: Pick<TopicRecord, "slug" | "lastMaterialChangeAt" | "status">): boolean {
+  if (compileBlocked(topic.slug)) return false;
+  if (topic.lastMaterialChangeAt) return true;
+  return isDemoLaunchSlug(topic.slug) && topic.status !== "stub";
+}
+
 export function warehouseSourceList(sources: SourceRecord[], limit = WAREHOUSE_SOURCE_PAGE_LIMIT): SourceRecord[] {
   return [...sources]
     .sort((a, b) => b.retrievedAt.localeCompare(a.retrievedAt) || (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""))
@@ -260,13 +274,14 @@ export type RadarRow = {
   score: number;
 };
 
-/** Recency × source count. Radar is a signal strip, not a dump. */
+/** Recency × source count. Radar is a signal strip, not a dump. Off-spine hubs stay out. */
 export function radarTopics(graph: GraphSnapshot, now = new Date(), limit = RADAR_LIMIT): RadarRow[] {
   const counts = sourceCountsByTopicId(graph.sources);
   const retrieved = lastRetrievedByTopicId(graph.sources);
   const nowMs = now.getTime();
   const rows: RadarRow[] = [];
   for (const topic of graph.topics) {
+    if (compileBlocked(topic.slug)) continue;
     const sourceCount = counts.get(topic.id) ?? 0;
     if (sourceCount <= 0) continue;
     const lastRetrievedAt = retrieved.get(topic.id) ?? null;
@@ -286,8 +301,19 @@ export function radarTopics(graph: GraphSnapshot, now = new Date(), limit = RADA
   return rows.sort((a, b) => b.score - a.score || b.sourceCount - a.sourceCount || a.name.localeCompare(b.name)).slice(0, limit);
 }
 
-export function pulseTopics<T>(moved: T[], limit = PULSE_LIMIT): { visible: T[]; rest: T[] } {
-  return { visible: moved.slice(0, limit), rest: moved.slice(limit) };
+/** Demo spine first, then recency. Hugging Face and other compile-blocked hubs never appear. */
+export function pulseTopics<T extends { slug: string }>(
+  moved: T[],
+  limit = PULSE_LIMIT,
+): { visible: T[]; rest: T[] } {
+  const eligible = moved.filter((row) => !compileBlocked(row.slug));
+  const pinned = DEMO_LAUNCH_SLUGS.map((slug) => eligible.find((row) => row.slug === slug)).filter(
+    (row): row is T => Boolean(row),
+  );
+  const pinnedSlugs = new Set(pinned.map((row) => row.slug));
+  const restMoved = eligible.filter((row) => !pinnedSlugs.has(row.slug));
+  const ordered = [...pinned, ...restMoved];
+  return { visible: ordered.slice(0, limit), rest: ordered.slice(limit) };
 }
 
 export type IndexGroup = { kind: string; topics: Array<{ slug: string; name: string; status: TopicRecord["status"] }> };

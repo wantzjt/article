@@ -60,6 +60,8 @@ describe("publication gate", () => {
     ).toBe("strong");
     expect(robotsForStatus("strong")).toBe("index, follow");
     expect(robotsForStatus("stub")).toBe("noindex, follow");
+    expect(robotsForStatus("strong", "huggingface")).toBe("noindex, follow");
+    expect(robotsForStatus("strong", "ca-sb-53")).toBe("index, follow");
   });
 
   it("keeps stubs honest", () => {

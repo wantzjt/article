@@ -7,6 +7,7 @@ import {
   formatRelative,
   formatTime,
   movedToday,
+  onPulse,
   pulseTopics,
   radarTopics,
   topicIndex,
@@ -20,7 +21,7 @@ export default async function HomePage() {
   const graph = await getGraph();
   const now = new Date();
   const moved = [...graph.topics]
-    .filter((topic) => topic.lastMaterialChangeAt)
+    .filter(onPulse)
     .sort((a, b) => (b.lastMaterialChangeAt ?? "").localeCompare(a.lastMaterialChangeAt ?? ""));
   const latestByTopic = new Map<string, { createdAt: string; changeSummary: string }>();
   for (const version of graph.versions) {
@@ -48,8 +49,40 @@ export default async function HomePage() {
   const coverage = warehouseCoverage(graph);
   const index = topicIndex(graph);
 
+  const claimCount = graph.claims.filter((claim) => claim.status !== "rejected").length;
+
   return (
     <div className="space-y-10">
+      <section className="space-y-3">
+        <p className="kicker">Explore</p>
+        <p className="text-[0.9375rem] leading-6">
+          Article.fm is an evidence graph for living topics — bills, models, companies — not a stream
+          of rewritten articles.
+        </p>
+        <p className="text-[0.9375rem] leading-6">
+          Claims come before prose. A public sentence has to sit on a persisted claim, and a claim has
+          to sit on a source.
+        </p>
+        <p className="text-[0.9375rem] leading-6">
+          Pulse is what moved. Open a topic for evidence, disagreements, and timeline.
+        </p>
+        <p className="text-[0.9375rem] leading-6">
+          If a topic is still a stub, sources are banked and not compiled: five latest, the rest under
+          a lid.
+        </p>
+        <p className="text-[0.9375rem] leading-6">
+          This is not a content mill. We do not invent journalists, average away disputes, or rewrite
+          the page on every visit.
+        </p>
+        <p className="meta">
+          {formatCount(claimCount)} claims
+          {" · "}
+          {formatCount(coverage.urls)} sources
+          {" · last retrieved "}
+          {formatTime(coverage.lastRetrievedAt)}
+        </p>
+      </section>
+
       <section>
         <h2 className="kicker">Pulse</h2>
         {pulse.visible.length === 0 ? (

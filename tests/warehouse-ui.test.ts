@@ -151,19 +151,98 @@ describe("pulse radar index", () => {
     expect(warehouseCoverage(graph).urls).toBe(graph.sources.length);
   });
 
+  it("keeps Hugging Face off Pulse and Radar even when the warehouse is fat", () => {
+    const graph = emptyGraph();
+    const now = new Date("2026-08-27T12:00:00.000Z");
+    graph.topics.push({
+      id: "topic_huggingface",
+      slug: "huggingface",
+      name: "Hugging Face",
+      entityType: "lab",
+      kind: "company",
+      description: "Hub.",
+      aliases: [],
+      officialDomains: ["huggingface.co"],
+      status: "provisional",
+      createdAt: "t",
+      updatedAt: "t",
+      lastVerifiedAt: "2026-08-27T11:00:00.000Z",
+      lastMaterialChangeAt: "2026-08-27T11:00:00.000Z",
+    });
+    graph.topics.push({
+      id: "topic_ca-sb-53",
+      slug: "ca-sb-53",
+      name: "California AI bills",
+      entityType: "policy",
+      kind: "policy",
+      description: "Bills.",
+      aliases: [],
+      officialDomains: ["ca.gov"],
+      status: "strong",
+      createdAt: "t",
+      updatedAt: "t",
+      lastVerifiedAt: "2026-08-27T10:00:00.000Z",
+      lastMaterialChangeAt: "2026-08-27T10:00:00.000Z",
+    });
+    for (let s = 0; s < 40; s += 1) {
+      graph.sources.push(
+        source({
+          id: `hf-${s}`,
+          canonicalUrl: `https://huggingface.co/${s}`,
+          retrievedAt: "2026-08-27T11:30:00.000Z",
+          metadata: { topic_id: "topic_huggingface" },
+        }),
+      );
+    }
+    graph.sources.push(
+      source({
+        id: "ca-1",
+        canonicalUrl: "https://leginfo.legislature.ca.gov/sb53",
+        retrievedAt: "2026-08-26T00:00:00.000Z",
+        metadata: { topic_id: "topic_ca-sb-53" },
+      }),
+    );
+    const pulse = pulseTopics(graph.topics.filter((row) => row.lastMaterialChangeAt));
+    expect(pulse.visible.map((row) => row.slug)).toEqual(["ca-sb-53"]);
+    expect(radarTopics(graph, now).map((row) => row.slug)).toEqual(["ca-sb-53"]);
+  });
+
+  it("pins the launch spine ahead of other movement", () => {
+    const topics = ["z-ai", "glm-5-3", "coreweave", "ca-sb-53"].map((slug) => ({
+      id: `topic_${slug}`,
+      slug,
+      lastMaterialChangeAt: "2026-08-27T12:00:00.000Z",
+    }));
+    const pulse = pulseTopics(topics);
+    expect(pulse.visible.map((row) => row.slug).slice(0, 3)).toEqual([
+      "ca-sb-53",
+      "glm-5-3",
+      "coreweave",
+    ]);
+  });
+
   it("explore is pulse/radar/index, not a coverage dump", () => {
     const home = readFileSync(path.join(process.cwd(), "src/app/page.tsx"), "utf8");
     const dossier = readFileSync(path.join(process.cwd(), "src/components/topic-view.tsx"), "utf8");
+    const methodology = readFileSync(path.join(process.cwd(), "src/app/methodology/page.tsx"), "utf8");
+    const llms = readFileSync(path.join(process.cwd(), "src/app/llms.txt/route.ts"), "utf8");
     expect(home).toMatch(/Pulse/);
     expect(home).toMatch(/Radar/);
     expect(home).toMatch(/Index/);
+    expect(home).toMatch(/Claims come before prose/);
+    expect(home).toMatch(/not a content mill/);
     expect(home).not.toMatch(/>Coverage</);
     expect(home).not.toMatch(/All topics/);
     expect(home).not.toMatch(/stub — sources banked/);
     expect(dossier).toMatch(/Latest evidence/);
     expect(dossier).toMatch(/All sources/);
+    expect(dossier).toMatch(/Sources banked · not compiled/);
     expect(dossier).not.toMatch(/claimText: source/);
+    expect(methodology).toMatch(/Last retrieved/);
+    expect(methodology).toMatch(/Follow, Frequency, and email are not on this site yet/);
+    expect(llms).toMatch(/does not train models/);
     expect(isAudioTopic("glm-5-3")).toBe(true);
     expect(isAudioTopic("huggingface")).toBe(false);
+    expect(isAudioTopic("glm-5-2")).toBe(false);
   });
 });

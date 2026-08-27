@@ -11,13 +11,20 @@ export async function GET() {
     "",
     brand.tagline,
     "",
+    "This file is a discovery map for agents. It does not train models.",
+    "Canonical pages are the source of truth: claims, sources, disagreements, timeline.",
+    "",
+    `Explore: ${brand.siteUrl}/`,
+    `Methodology: ${brand.siteUrl}/methodology`,
+    `Corrections: ${brand.siteUrl}/corrections`,
+    "",
     "Strong topics:",
     ...topics.map(
       (topic) =>
-        `- [${topic.name}](${brand.siteUrl}/topic/${topic.slug}/md): ${topic.description}`,
+        `- [${topic.name}](${brand.siteUrl}/topic/${topic.slug}): ${topic.description}`,
     ),
     "",
-    `Methodology: ${brand.siteUrl}/methodology`,
+    "Machine-readable topic: append /md to a topic URL.",
   ].join("\n");
   return new NextResponse(body, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }

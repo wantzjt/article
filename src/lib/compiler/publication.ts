@@ -1,3 +1,4 @@
+import { compileBlocked } from "./compile-priority";
 import type { ClaimRecord, ClaimSourceRecord, SourceRecord, TopicStatus } from "./types";
 
 export const STRONG_MIN_CLAIMS = 5;
@@ -36,7 +37,11 @@ export function graduateTopic(input: {
   return "stub";
 }
 
-export function robotsForStatus(status: TopicStatus): "index, follow" | "noindex, follow" {
+export function robotsForStatus(
+  status: TopicStatus,
+  slug?: string,
+): "index, follow" | "noindex, follow" {
+  if (slug && compileBlocked(slug)) return "noindex, follow";
   return status === "strong" ? "index, follow" : "noindex, follow";
 }
 

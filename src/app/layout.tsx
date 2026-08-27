@@ -22,7 +22,7 @@ const sourceSerif = Source_Serif_4({
 
 export const metadata: Metadata = {
   title: {
-    default: brand.productName,
+    default: brand.title,
     template: `%s · ${brand.productName}`,
   },
   description: brand.description,

@@ -178,6 +178,7 @@
     font-size: 1.0625rem;
     line-height: 1.625rem;
     color: var(--ink);
+    overflow-wrap: anywhere;
   }
   .meta {
     font-family: var(--font-mono), ui-monospace, monospace;

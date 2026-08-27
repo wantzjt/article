@@ -1,9 +1,10 @@
 export const brand = {
   productName: "Article.fm",
   tagline: "News around things, not articles.",
-  siteUrl: process.env.SITE_URL ?? "http://localhost:3000",
+  title: "Article.fm — news around things, not articles",
+  siteUrl: process.env.SITE_URL ?? "https://article.fm",
   description:
-    "Canonical topics, atomic claims, and the sources that support or dispute them.",
+    "Living topics with claims, sources, and disagreements — not rewritten articles.",
 } as const;
 
 export type Brand = typeof brand;

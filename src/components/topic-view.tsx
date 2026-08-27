@@ -173,19 +173,16 @@ export function TopicView({
           <p className="max-w-prose text-[0.9375rem] leading-6">{displayDek(graph.topic.description)}</p>
         ) : null}
         <div className="space-y-2">
-          <p className="meta">
+          <p className="meta flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <StatusChip status={graph.topic.status} />
-            {" · "}
-            {formatCount(accepted.length)} claims
-            {" · "}
-            {formatCount(graph.sources.length)} sources
-            {" · "}
-            last verified {formatTime(graph.topic.lastVerifiedAt)}
+            <span>{formatCount(accepted.length)} claims</span>
+            <span>{formatCount(graph.sources.length)} sources</span>
           </p>
+          <p className="meta">last verified {formatTime(graph.topic.lastVerifiedAt)}</p>
           {hasClaims ? null : (
             <p className="meta">
               {graph.sources.length > 0
-                ? "Sources banked · claims not compiled"
+                ? "Sources banked · not compiled"
                 : stub
                   ? "Stub · no sources banked yet"
                   : `${graph.topic.status} · no compiled claims`}
