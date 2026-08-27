@@ -15,6 +15,8 @@
     "ocean:night": "dotenv -e .env.local -- tsx scripts/night-ocean.ts",
     "ocean:exa": "dotenv -e .env.local -- tsx scripts/ocean-exa.ts",
     "ocean:blitz": "dotenv -e .env.local -- tsx scripts/ocean-blitz.ts",
+    "graph:enrich": "dotenv -e .env.local -- tsx scripts/enrich-graph.ts",
+    "compile:yield": "dotenv -e .env.local -- tsx scripts/compile-yield.ts",
     "finance:discover": "dotenv -e .env.local -- tsx scripts/finance-discover.ts",
     "db:migrate": "dotenv -e .env.local -- tsx scripts/migrate.ts",
     "db:sync": "dotenv -e .env.local -- tsx scripts/sync-neon.ts"

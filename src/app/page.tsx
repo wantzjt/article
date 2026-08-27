@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { WorldFeed, type WorldFeedRow } from "@/components/world-feed";
 import { currentProfile } from "@/lib/auth/current-user";
+import { changeKindLabel } from "@/lib/compiler/change-engine";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import { loadClassifications } from "@/lib/frequency/classify";
 import { changeCopy } from "@/lib/frequency/changes";
@@ -72,6 +73,7 @@ export default async function HomePage({
       change,
       breakthrough: "breakthrough" in row && row.breakthrough,
       worldMoved: movedToday(lastMaterial, now),
+      changeKind: "changeKind" in row && row.changeKind ? changeKindLabel(row.changeKind) : null,
     };
   });
 

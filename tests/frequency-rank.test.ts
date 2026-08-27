@@ -26,6 +26,8 @@ function change(partial: Partial<FrequencyChange> & Pick<FrequencyChange, "slug"
     facetChild: null,
     sourceUrl: "https://example.com/source",
     sourceDomain: "example.com",
+    changeKind: null,
+    relatedSlug: null,
     ...partial,
   };
 }

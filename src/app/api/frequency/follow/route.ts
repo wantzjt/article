@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/auth/session";
 import { setFollow } from "@/lib/frequency/store";
+import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { getTopicBySlug } from "@/lib/store/json-store";
 
 export const runtime = "nodejs";
@@ -17,7 +18,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
   }
   const topic = await getTopicBySlug(slug);
-  if (!topic) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  if (!topic || !isPublicTopicStatus(topic.topic.status)) {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
   try {
     const profile = await setFollow({
       userId: session.userId,

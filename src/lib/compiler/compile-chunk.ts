@@ -6,11 +6,19 @@ export const MAX_EXTRACT_CHUNKS_PER_TOPIC = 3;
 export const TOPIC_COMPILE_BUDGET_MS = 8 * 60_000;
 export const MIN_EXTRACT_EXCERPT = 40;
 
+export function warehouseYieldLow(claims: number, sources: number): boolean {
+  if (sources >= 8 && claims === 0) return true;
+  if (sources >= 20 && claims / sources < 0.08) return true;
+  return false;
+}
+
 export function shouldSkipExtract(input: {
   acceptedClaimCount: number;
   changedSourceCount: number;
   strongMinClaims: number;
+  sourceCount?: number;
 }): "enough_claims" | "unchanged_hash" | null {
+  if (warehouseYieldLow(input.acceptedClaimCount, input.sourceCount ?? 0)) return null;
   if (input.acceptedClaimCount >= input.strongMinClaims) return "enough_claims";
   if (input.changedSourceCount === 0 && input.acceptedClaimCount >= 1) return "unchanged_hash";
   return null;

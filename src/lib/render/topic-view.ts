@@ -222,6 +222,7 @@ export function isDemoLaunchSlug(slug: string): boolean {
 
 export function onPulse(topic: Pick<TopicRecord, "slug" | "lastMaterialChangeAt" | "status">): boolean {
   if (compileBlocked(topic.slug)) return false;
+  if (topic.status === "candidate") return false;
   if (topic.lastMaterialChangeAt) return true;
   return isDemoLaunchSlug(topic.slug) && topic.status !== "stub";
 }

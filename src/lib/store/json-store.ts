@@ -3,8 +3,10 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type {
   BriefRecord,
+  ChangeEvent,
   ClaimRecord,
   ClaimSourceRecord,
+  GraphEdge,
   SourceRecord,
   TopicEntityMeta,
   TopicRecord,
@@ -25,6 +27,8 @@ import {
 const DATA_PATH = path.join(process.cwd(), "data", "graph.json");
 
 function sanitizeGraph(graph: GraphSnapshot): GraphSnapshot {
+  graph.edges = graph.edges ?? [];
+  graph.changes = graph.changes ?? [];
   for (const event of graph.spend) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(event.day)) {
       const fromCreated = Date.parse(event.createdAt);
@@ -375,4 +379,33 @@ export async function getRun(id: string): Promise<PipelineRunRecord | null> {
 
 export function resetMemoryForTests(snapshot: GraphSnapshot = emptyGraph()): void {
   memory = structuredClone(snapshot);
+}
+
+export async function upsertEdges(incoming: GraphEdge[]): Promise<GraphEdge[]> {
+  if (incoming.length === 0) return [];
+  const graph = await load();
+  const key = (row: GraphEdge) => `${row.fromId}|${row.kind}|${row.toId}`;
+  const map = new Map(graph.edges.map((row) => [key(row), row]));
+  const added: GraphEdge[] = [];
+  for (const row of incoming) {
+    if (map.has(key(row))) continue;
+    map.set(key(row), row);
+    added.push(row);
+  }
+  graph.edges = [...map.values()];
+  if (added.length) await persist(graph);
+  return added;
+}
+
+export async function addChanges(events: ChangeEvent[]): Promise<void> {
+  if (events.length === 0) return;
+  const graph = await load();
+  const seen = new Set(graph.changes.map((row) => `${row.topicId}|${row.kind}|${row.claimId ?? ""}|${row.summary}`));
+  for (const event of events) {
+    const id = `${event.topicId}|${event.kind}|${event.claimId ?? ""}|${event.summary}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    graph.changes.push(event);
+  }
+  await persist(graph);
 }

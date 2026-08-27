@@ -1,10 +1,12 @@
 import type { GraphSnapshot } from "@/lib/store/graph";
 import type { NightStopReason } from "./night-policy";
+import { yieldSnapshot } from "./yield";
 
 export type OceanTopicCount = {
   strong: number;
   provisional: number;
   stub: number;
+  candidate: number;
 };
 
 export type OceanMovedTopic = {
@@ -32,6 +34,7 @@ export const STATUS_PUBLIC_KEYS = [
   "runner",
   "lastError",
   "lastRunAt",
+  "yield",
 ] as const;
 
 export type OceanSummary = {
@@ -42,6 +45,7 @@ export type OceanSummary = {
   spendTodayUsd: number;
   lastRunAt: string | null;
   lastError: string | null;
+  yield: ReturnType<typeof yieldSnapshot>;
 };
 
 export const NIGHT_RUNNER_STALE_MS = 20 * 60_000;
@@ -99,6 +103,7 @@ export function publicStatusPayload(input: {
     runner: inferRunner(input.summary.lastRunAt, input.now),
     lastError: input.summary.lastError,
     lastRunAt: input.summary.lastRunAt,
+    yield: input.summary.yield,
   };
 }
 
@@ -142,10 +147,11 @@ export function summarizeOcean(graph: GraphSnapshot, now = new Date()): OceanSum
   const spendTodayUsd = graph.spend
     .filter((row) => row.day === day)
     .reduce((sum, row) => sum + row.costUsd, 0);
-  const topics: OceanTopicCount = { strong: 0, provisional: 0, stub: 0 };
+  const topics: OceanTopicCount = { strong: 0, provisional: 0, stub: 0, candidate: 0 };
   for (const topic of graph.topics) {
     if (topic.status === "strong") topics.strong += 1;
     else if (topic.status === "provisional") topics.provisional += 1;
+    else if (topic.status === "candidate") topics.candidate += 1;
     else topics.stub += 1;
   }
   const whatMoved = graph.topics
@@ -171,6 +177,7 @@ export function summarizeOcean(graph: GraphSnapshot, now = new Date()): OceanSum
     spendTodayUsd,
     lastRunAt: lastRunAt || null,
     lastError: safeLastError(lastFailed?.error),
+    yield: yieldSnapshot(graph),
   };
 }
 

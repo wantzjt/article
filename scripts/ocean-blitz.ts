@@ -200,7 +200,7 @@ async function ensureTopic(entity: SeedEntity, progress: Progress): Promise<{ id
     description: entity.description,
     aliases: entity.aliases ?? [],
     officialDomains: entity.officialDomains ?? [],
-    status: "stub",
+    status: "candidate",
     lastVerifiedAt: null,
     lastMaterialChangeAt: null,
   });

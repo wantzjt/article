@@ -300,7 +300,8 @@ describe("/api/status shape is public and secret-free", () => {
     const blob = JSON.stringify(payload);
     expect(blob).not.toMatch(/DATABASE_URL|ADMIN_SECRET|VERCEL_OIDC|EXA_API_KEY|BLOB_READ_WRITE|eyJ[A-Za-z0-9_-]{20,}/);
     expect(payload.ok).toBe(true);
-    expect(payload.topics).toEqual({ strong: 0, provisional: 0, stub: 0 });
+    expect(payload.topics).toEqual({ strong: 0, provisional: 0, stub: 0, candidate: 0 });
+    expect(payload.yield.claims).toBe(0);
     expect(payload.spendUsd).toBe(0);
     expect(payload.spendCapUsd).toBe(6.5);
     expect(payload.hardStopAt).toBe("2026-08-30T23:59:00-05:00");

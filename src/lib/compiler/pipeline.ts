@@ -23,6 +23,7 @@ import { dropClaimsWithoutKnownSource, excerptSupportsClaim, gateCandidateClaim 
 import { failClosedStatus, graduateTopic, shouldPublishBrief, STRONG_MIN_CLAIMS } from "./publication";
 import { acceptVerifyObject, shouldRunExtract, statusAfterRenderTimeout } from "./fail-closed";
 import { detectMaterialChange } from "./versions";
+import { detectClaimChanges } from "./change-engine";
 import { assertUnderModelCap, ModelSpendCapError } from "./spend";
 import { logPipeline } from "./logger";
 import {
@@ -238,6 +239,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
       acceptedClaimCount: acceptedExisting.length,
       changedSourceCount: changedSources.length,
       strongMinClaims: Number.isFinite(skipExtractMin) && skipExtractMin > 0 ? skipExtractMin : STRONG_MIN_CLAIMS,
+      sourceCount: persistedSources.length,
     });
     if (skipExtract) {
       logPipeline({
@@ -469,6 +471,7 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
 
     const allClaims = await store.listClaimsForTopic(topic.id);
     const allLinks = await store.listClaimSources(allClaims.map((claim) => claim.id));
+    await store.addChanges(detectClaimChanges({ topicId: topic.id, before: existingClaims, after: allClaims }));
     const prior = await store.latestVersion(topic.id);
     const material = detectMaterialChange({
       previousHash: prior?.materialHash ?? null,

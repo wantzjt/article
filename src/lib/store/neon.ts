@@ -1,8 +1,10 @@
 import { neon } from "@neondatabase/serverless";
 import type {
   BriefRecord,
+  ChangeEvent,
   ClaimRecord,
   ClaimSourceRecord,
+  GraphEdge,
   SourceRecord,
   TopicEntityMeta,
   TopicRecord,
@@ -40,6 +42,18 @@ export async function loadGraphFromNeon(): Promise<GraphSnapshot | null> {
       sql.query("SELECT * FROM ai_spend_events"),
       sql.query("SELECT * FROM pipeline_runs"),
     ]);
+    let edges: GraphEdge[] = [];
+    let changes: ChangeEvent[] = [];
+    try {
+      edges = (await sql.query("SELECT * FROM graph_edges")).map(mapEdge);
+    } catch {
+      edges = [];
+    }
+    try {
+      changes = (await sql.query("SELECT * FROM graph_changes")).map(mapChange);
+    } catch {
+      changes = [];
+    }
     return {
       topics: topics.map(mapTopic),
       sources: sources.map(mapSource),
@@ -49,6 +63,8 @@ export async function loadGraphFromNeon(): Promise<GraphSnapshot | null> {
       versions: versions.map(mapVersion),
       spend: spend.map(mapSpend),
       runs: runs.map(mapRun),
+      edges,
+      changes,
     };
   } catch {
     return null;
@@ -202,6 +218,35 @@ export async function saveGraphToNeon(graph: GraphSnapshot): Promise<void> {
       [run.id, run.topicId, run.status, JSON.stringify(run.stages ?? {}), run.error, run.createdAt, run.updatedAt],
     );
   }
+  try {
+    for (const edge of graph.edges ?? []) {
+      await sql.query(
+        `INSERT INTO graph_edges (id, from_id, to_id, kind, source_id, evidence, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         ON CONFLICT (from_id, to_id, kind) DO NOTHING`,
+        [edge.id, edge.fromId, edge.toId, edge.kind, edge.sourceId, edge.evidence, edge.createdAt],
+      );
+    }
+    for (const change of graph.changes ?? []) {
+      await sql.query(
+        `INSERT INTO graph_changes (id, topic_id, kind, claim_id, related_topic_id, summary, material, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          change.id,
+          change.topicId,
+          change.kind,
+          change.claimId,
+          change.relatedTopicId,
+          change.summary,
+          change.material,
+          change.createdAt,
+        ],
+      );
+    }
+  } catch {
+    // Schema may not be applied yet.
+  }
 }
 
 const SOURCE_COLUMNS = 13;
@@ -343,6 +388,7 @@ function mapClaim(row: Record<string, unknown>): ClaimRecord {
     supersededAt: iso(row.superseded_at),
     createdAt: isoRequired(row.created_at),
     updatedAt: isoRequired(row.updated_at),
+    coordinates: Array.isArray(row.coordinates) ? (row.coordinates as ClaimRecord["coordinates"]) : [],
   };
 }
 
@@ -403,6 +449,31 @@ function mapRun(row: Record<string, unknown>): PipelineRunRecord {
     error: row.error ? String(row.error) : null,
     createdAt: isoRequired(row.created_at),
     updatedAt: isoRequired(row.updated_at),
+  };
+}
+
+function mapEdge(row: Record<string, unknown>): GraphEdge {
+  return {
+    id: String(row.id),
+    fromId: String(row.from_id),
+    toId: String(row.to_id),
+    kind: row.kind as GraphEdge["kind"],
+    sourceId: row.source_id ? String(row.source_id) : null,
+    evidence: String(row.evidence ?? ""),
+    createdAt: isoRequired(row.created_at),
+  };
+}
+
+function mapChange(row: Record<string, unknown>): ChangeEvent {
+  return {
+    id: String(row.id),
+    topicId: String(row.topic_id),
+    kind: row.kind as ChangeEvent["kind"],
+    claimId: row.claim_id ? String(row.claim_id) : null,
+    relatedTopicId: row.related_topic_id ? String(row.related_topic_id) : null,
+    summary: String(row.summary ?? ""),
+    material: Boolean(row.material),
+    createdAt: isoRequired(row.created_at),
   };
 }
 

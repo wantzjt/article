@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SearchForm } from "@/components/search-form";
+import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import { getGraph } from "@/lib/store/json-store";
 
@@ -29,6 +30,7 @@ export default async function SearchPage({
   const graph = await getGraph();
   const hits = q
     ? graph.topics
+        .filter((topic) => isPublicTopicStatus(topic.status))
         .map((topic) => ({ topic, score: scoreTopic(q, topic) }))
         .filter((row) => row.score > 0)
         .sort((a, b) => b.score - a.score || a.topic.name.localeCompare(b.topic.name))

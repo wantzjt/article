@@ -289,6 +289,8 @@ export const glm53Fixture: GraphSnapshot = {
   ],
   spend: [],
   runs: [],
+  edges: [],
+  changes: [],
 };
 
 export const FIXTURE_GENERATED_AT = NOW;

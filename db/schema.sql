@@ -144,3 +144,27 @@ CREATE TABLE IF NOT EXISTS frequency_classifications (
   child text,
   classified_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS graph_edges (
+  id text PRIMARY KEY,
+  from_id text NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  to_id text NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  source_id text,
+  evidence text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (from_id, to_id, kind)
+);
+
+CREATE TABLE IF NOT EXISTS graph_changes (
+  id text PRIMARY KEY,
+  topic_id text NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  claim_id text,
+  related_topic_id text,
+  summary text NOT NULL,
+  material boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS coordinates jsonb NOT NULL DEFAULT '[]'::jsonb;

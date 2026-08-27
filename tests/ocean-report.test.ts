@@ -79,7 +79,7 @@ describe("ocean summary", () => {
     const summary = summarizeOcean(graph);
     expect(summary.urls).toBe(1);
     expect(summary.claims).toBe(1);
-    expect(summary.topics).toEqual({ strong: 1, provisional: 1, stub: 0 });
+    expect(summary.topics).toEqual({ strong: 1, provisional: 1, stub: 0, candidate: 0 });
     expect(summary.whatMoved.map((row) => row.slug)).toEqual(["openai", "glm-5-3"]);
     expect(summary.spendTodayUsd).toBeCloseTo(0.01);
     expect(summary.lastError).toBeNull();

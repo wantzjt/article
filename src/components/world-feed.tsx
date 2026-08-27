@@ -12,6 +12,7 @@ export type WorldFeedRow = {
   change: string;
   breakthrough?: boolean;
   worldMoved?: boolean;
+  changeKind?: string | null;
 };
 
 export function WorldFeed({
@@ -60,6 +61,7 @@ export function WorldFeed({
               </span>
             </div>
             <p className="meta mt-1">
+              {row.changeKind ? `${row.changeKind} · ` : ""}
               {row.kind}
               {row.child ? ` · ${row.child}` : ""}
               {world ? " · World changed" : ""}

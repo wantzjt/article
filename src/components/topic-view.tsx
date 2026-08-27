@@ -75,6 +75,14 @@ function ClaimRow({ graph, claim }: { graph: TopicGraph; claim: ClaimWithEvidenc
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <StatusChip status={claim.status} />
         <span className="meta">{evidenceLabel(graph, claim.id)}</span>
+        {claim.coordinates?.some((row) => row.child) ? (
+          <span className="meta">
+            {claim.coordinates
+              .filter((row) => row.child)
+              .map((row) => `${row.facet}/${row.child}`)
+              .join(" · ")}
+          </span>
+        ) : null}
       </div>
       <div className="mt-2">
         <GroundedAsk slug={graph.topic.slug} kind="claim" id={claim.id}>

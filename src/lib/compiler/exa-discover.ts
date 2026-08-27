@@ -47,6 +47,29 @@ export async function discoverSourcesForEntity(input: {
     allHits.push(...row.hits);
   }
 
+  let queriesRun = passes.length;
+  if (allHits.length === 0 && !isExaHardStop(Date.now(), input.hardStopMs)) {
+    const alias = input.entity.aliases[0] ?? "";
+    const retries = [
+      { query: `${input.entity.name} ${alias} news`.trim(), category: "news" as const, queryTag: "retry.news" },
+      { query: `${input.entity.name} official`.trim(), category: "web" as const, queryTag: "retry.web" },
+    ];
+    for (const retry of retries) {
+      if (isExaHardStop(Date.now(), input.hardStopMs)) break;
+      const invoked = await invokeExaSearch({
+        query: retry.query,
+        category: retry.category,
+        queryTag: retry.queryTag,
+        startPublishedDate: new Date(Date.now() - 400 * 86400000).toISOString(),
+      });
+      queriesRun += 1;
+      gatewayCost += invoked.gatewayCostUsd;
+      if (invoked.error?.message) errors.push(`retry ${retry.queryTag}: ${invoked.error.message}`.slice(0, 240));
+      allHits.push(...invoked.hits);
+      if (invoked.hits.length > 0) break;
+    }
+  }
+
   const byUrl = new Map((await store.listSources()).map((source) => [source.canonicalUrl, source]));
   const mapped = discoveredToSourceRecords({
     hits: allHits,
@@ -69,7 +92,7 @@ export async function discoverSourcesForEntity(input: {
     slug: input.entity.slug,
     ok: mapped.urls.length > 0 || mapped.unchanged > 0,
     pass: input.pass,
-    queriesRun: passes.length,
+    queriesRun,
     hits: mapped.urls.length,
     sourcesAdded: mapped.added,
     sourcesUnchanged: mapped.unchanged,

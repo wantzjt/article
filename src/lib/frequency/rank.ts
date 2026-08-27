@@ -1,5 +1,5 @@
 import { compileBlocked } from "@/lib/compiler/compile-priority";
-import type { TopicStatus } from "@/lib/compiler/types";
+import type { ChangeKind, TopicStatus } from "@/lib/compiler/types";
 import { facetMultiplier, type Facet } from "./facets";
 
 export type FrequencyChange = {
@@ -20,6 +20,8 @@ export type FrequencyChange = {
   facetChild: string | null;
   sourceUrl: string | null;
   sourceDomain: string | null;
+  changeKind: ChangeKind | null;
+  relatedSlug: string | null;
 };
 
 export type FollowState = {
@@ -99,15 +101,18 @@ export function rankFrequency(
     const global = globalSignificance(change, now);
     const personal = personalRelevance(change, profile);
     const isFollowed = followed.has(change.topicId);
-    const material = global >= MATERIAL_THRESHOLD;
+    const viaRelationship = Boolean(change.relatedSlug) && !isFollowed;
+    const material = global >= MATERIAL_THRESHOLD || change.changeKind === "disputed" || change.changeKind === "resolved";
     const lowPersonal = personal < 0.7;
-    const breakthrough = material && (!isFollowed || lowPersonal);
-    if (!isFollowed && !breakthrough) continue;
+    const breakthrough = material && (!isFollowed || lowPersonal || viaRelationship);
+    if (!isFollowed && !breakthrough && !viaRelationship) continue;
     const reasons: string[] = [];
     if (isFollowed) reasons.push("followed");
+    else if (viaRelationship) reasons.push(`via ${change.relatedSlug}`);
     else reasons.push("unfollowed");
     reasons.push(`facet ${change.facet}${change.facetChild ? `/${change.facetChild}` : ""} ×${personal.toFixed(2)}`);
     reasons.push(`global ${global.toFixed(2)}`);
+    if (change.changeKind) reasons.push(change.changeKind);
     if (change.disputed) reasons.push("disagreement");
     if (breakthrough) reasons.push("breakthrough material");
     const score = isFollowed

@@ -1,7 +1,9 @@
 import type {
   BriefRecord,
+  ChangeEvent,
   ClaimRecord,
   ClaimSourceRecord,
+  GraphEdge,
   SourceRecord,
   TopicRecord,
   TopicVersionRecord,
@@ -36,6 +38,8 @@ export type GraphSnapshot = {
   versions: TopicVersionRecord[];
   spend: SpendEvent[];
   runs: PipelineRunRecord[];
+  edges: GraphEdge[];
+  changes: ChangeEvent[];
 };
 
 export function emptyGraph(): GraphSnapshot {
@@ -48,6 +52,8 @@ export function emptyGraph(): GraphSnapshot {
     versions: [],
     spend: [],
     runs: [],
+    edges: [],
+    changes: [],
   };
 }
 
@@ -65,6 +71,8 @@ export type TopicGraph = {
   sources: SourceRecord[];
   versions: TopicVersionRecord[];
   briefs: BriefRecord[];
+  changes: ChangeEvent[];
+  edges: GraphEdge[];
 };
 
 /** Ocean banks hits on metadata.topic_id / topicId, not only claim_sources. */
@@ -113,5 +121,7 @@ export function assembleTopic(graph: GraphSnapshot, topic: TopicRecord): TopicGr
           ];
         }),
     })),
+    changes: (graph.changes ?? []).filter((row) => row.topicId === topic.id),
+    edges: (graph.edges ?? []).filter((row) => row.fromId === topic.id || row.toId === topic.id),
   };
 }

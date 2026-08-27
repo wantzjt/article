@@ -36,8 +36,56 @@ export const FINANCE_CLAIM_KINDS = [
 ] as const;
 export type FinanceClaimKind = (typeof FINANCE_CLAIM_KINDS)[number];
 
-export const TOPIC_STATUSES = ["stub", "provisional", "strong"] as const;
+export const TOPIC_STATUSES = ["candidate", "stub", "provisional", "strong"] as const;
 export type TopicStatus = (typeof TOPIC_STATUSES)[number];
+
+export const CHANGE_KINDS = [
+  "new",
+  "updated",
+  "confirmed",
+  "disputed",
+  "resolved",
+  "relationship",
+  "retracted",
+] as const;
+export type ChangeKind = (typeof CHANGE_KINDS)[number];
+
+export const EDGE_KINDS = [
+  "PRODUCT_OF",
+  "CEO_OF",
+  "DEPENDS_ON",
+  "REGULATES",
+  "COMPETES_WITH",
+  "PART_OF",
+  "MENTIONS",
+] as const;
+export type EdgeKind = (typeof EDGE_KINDS)[number];
+
+export type GraphEdge = {
+  id: string;
+  fromId: string;
+  toId: string;
+  kind: EdgeKind;
+  sourceId: string | null;
+  evidence: string;
+  createdAt: string;
+};
+
+export type ChangeEvent = {
+  id: string;
+  topicId: string;
+  kind: ChangeKind;
+  claimId: string | null;
+  relatedTopicId: string | null;
+  summary: string;
+  material: boolean;
+  createdAt: string;
+};
+
+export type FacetCoordinate = {
+  facet: string;
+  child: string | null;
+};
 
 export const CLAIM_STATUSES = [
   "supported",
@@ -106,6 +154,7 @@ export type ClaimRecord = {
   supersededAt: string | null;
   createdAt: string;
   updatedAt: string;
+  coordinates?: FacetCoordinate[];
 };
 
 export type ClaimSourceRecord = {

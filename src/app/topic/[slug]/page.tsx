@@ -5,6 +5,7 @@ import { TopicView } from "@/components/topic-view";
 import { playMeta } from "@/lib/audio/brief";
 import { currentProfile } from "@/lib/auth/current-user";
 import { compileBlocked } from "@/lib/compiler/compile-priority";
+import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { jsonLd, robotsForStatus } from "@/lib/render/topic-view";
 import { getTopicBySlug } from "@/lib/store/json-store";
 
@@ -15,7 +16,7 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const graph = await getTopicBySlug(slug);
-  if (!graph) return { title: "Not found" };
+  if (!graph || !isPublicTopicStatus(graph.topic.status)) return { title: "Not found" };
   const robots = robotsForStatus(graph.topic.status, graph.topic.slug);
   return {
     title: graph.topic.name,
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function TopicPage({ params }: Props) {
   const { slug } = await params;
   const graph = await getTopicBySlug(slug);
-  if (!graph) notFound();
+  if (!graph || !isPublicTopicStatus(graph.topic.status)) notFound();
   const current = await currentProfile();
   const follow = current?.profile.follows.find((row) => row.topicId === graph.topic.id);
 

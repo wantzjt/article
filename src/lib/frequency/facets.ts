@@ -48,7 +48,15 @@ export type FacetClass = {
 
 const CHILD_PATTERNS: Array<[Facet, string, RegExp]> = [
   ["technology", "robotics", /\b(robot|humanoid|optimus|unitree|boston dynamics|figure ai|apptronik|agility robotics)\b/i],
-  ["regulatory", "export-controls", /\bexport control/i],
+  ["technology", "cuda", /\bcuda\b/i],
+  ["technology", "gpus", /\b(gpu|gpus|blackwell|hopper|\bh100\b|\bh200\b|\bb200\b)\b/i],
+  ["technology", "inference", /\binference\b/i],
+  ["technology", "training", /\btraining\b/i],
+  ["technology", "networking", /\b(nvlink|infiniband|networking|ethernet)\b/i],
+  ["regulatory", "export-controls", /\b(export control|bis\b|commerce department)\b/i],
+  ["regulatory", "antitrust", /\b(antitrust|competition law)\b/i],
+  ["regulatory", "safety", /\b(ai safety|safety institute|\baisi\b)\b/i],
+  ["regulatory", "china", /\b(china|chinese|prc)\b/i],
   ["economic", "funding", /\b(series [a-d]|raised|funding round|ipo)\b/i],
 ];
 
@@ -58,17 +66,28 @@ export function inferFacet(input: { kind: string; text: string }): Facet {
 }
 
 export function classifyFacet(input: { kind: string; text: string }): FacetClass {
+  return classifyCoordinates(input)[0] ?? { facet: "technology", child: null };
+}
+
+/** A claim can sit on more than one coordinate. Deterministic. */
+export function classifyCoordinates(input: { kind: string; text: string }): FacetClass[] {
   const blob = input.text;
-  const childHit = CHILD_PATTERNS.find((row) => row[2].test(blob));
-  if (childHit) return { facet: childHit[0], child: childHit[1] };
-  let facet: Facet = KIND_FACET[input.kind] ?? "technology";
-  for (const [next, pattern] of KEYWORD_FACETS) {
-    if (pattern.test(blob)) {
-      facet = next;
-      break;
-    }
+  const out: FacetClass[] = [];
+  const seen = new Set<string>();
+  function add(facet: Facet, child: string | null) {
+    const key = `${facet}:${child ?? ""}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ facet, child });
   }
-  return { facet, child: null };
+  for (const [facet, child, pattern] of CHILD_PATTERNS) {
+    if (pattern.test(blob)) add(facet, child);
+  }
+  for (const [facet, pattern] of KEYWORD_FACETS) {
+    if (pattern.test(blob)) add(facet, null);
+  }
+  add(KIND_FACET[input.kind] ?? "technology", null);
+  return out;
 }
 
 const MULTIPLIER: Record<number, number> = {
