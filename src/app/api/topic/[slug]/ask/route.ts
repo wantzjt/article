@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { answerAsk, isAskTargetKind } from "@/lib/ask/grounded";
+import { answerAsk } from "@/lib/ask/grounded";
+import { isAskTargetKind } from "@/lib/ask/types";
 import { getTopicBySlug } from "@/lib/store/json-store";
 
 export const runtime = "nodejs";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ASK_QUESTIONS, type AskQuestion, type AskResult, type AskTargetKind } from "@/lib/ask/grounded";
+import { ASK_QUESTIONS, type AskQuestion, type AskResult, type AskTargetKind } from "@/lib/ask/types";
 
 export function GroundedAsk({
   slug,

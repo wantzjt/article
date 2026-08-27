@@ -58,7 +58,7 @@ describe("grounded ask", () => {
 
   it("does not add a general chat box or rewrite Pulse", () => {
     const ask = readFileSync(path.join(process.cwd(), "src/components/grounded-ask.tsx"), "utf8");
-    const questions = readFileSync(path.join(process.cwd(), "src/lib/ask/grounded.ts"), "utf8");
+    const questions = readFileSync(path.join(process.cwd(), "src/lib/ask/types.ts"), "utf8");
     const home = readFileSync(path.join(process.cwd(), "src/app/page.tsx"), "utf8");
     expect(questions).toMatch(/What changed\?/);
     expect(questions).toMatch(/Why is this disputed\?/);
