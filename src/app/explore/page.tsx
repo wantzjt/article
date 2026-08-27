@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { WorldFeed, type WorldFeedRow } from "@/components/world-feed";
+import { changeKindLabel, latestChangeByTopic } from "@/lib/compiler/change-engine";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import { changeLine, movedToday, onPulse, pulseTopics } from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
@@ -36,17 +37,24 @@ export default async function ExplorePage() {
       .filter(onPulse)
       .sort((a, b) => (b.lastMaterialChangeAt ?? "").localeCompare(a.lastMaterialChangeAt ?? "")),
   );
-  const rows: WorldFeedRow[] = pulse.visible.map((row) => ({
-    slug: row.slug,
-    name: row.name,
-    kind: topicKind(row),
-    lastMaterialChangeAt: row.lastMaterialChangeAt,
-    change: changeLine({
-      briefHeadline: latestBriefByTopic.get(row.id)?.headline,
-      changeSummary: latestByTopic.get(row.id)?.changeSummary,
-    }),
-    worldMoved: movedToday(row.lastMaterialChangeAt, now),
-  }));
+  const events = latestChangeByTopic(graph.changes ?? []);
+  const rows: WorldFeedRow[] = pulse.visible.map((row) => {
+    const event = events.get(row.id);
+    return {
+      slug: row.slug,
+      name: row.name,
+      kind: topicKind(row),
+      lastMaterialChangeAt: event?.createdAt ?? row.lastMaterialChangeAt,
+      change:
+        event?.summary ||
+        changeLine({
+          briefHeadline: latestBriefByTopic.get(row.id)?.headline,
+          changeSummary: latestByTopic.get(row.id)?.changeSummary,
+        }),
+      worldMoved: movedToday(row.lastMaterialChangeAt, now),
+      changeKind: event ? changeKindLabel(event.kind) : null,
+    };
+  });
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { WorldFeed, type WorldFeedRow } from "@/components/world-feed";
 import { currentProfile } from "@/lib/auth/current-user";
-import { changeKindLabel } from "@/lib/compiler/change-engine";
+import { changeKindLabel, latestChangeByTopic } from "@/lib/compiler/change-engine";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import { loadClassifications } from "@/lib/frequency/classify";
 import { changeCopy } from "@/lib/frequency/changes";
@@ -55,25 +55,29 @@ export default async function HomePage({
     ? { visible: payload.visible, rest: payload.rest }
     : pulseTopics([...graph.topics].filter(onPulse).sort((a, b) => (b.lastMaterialChangeAt ?? "").localeCompare(a.lastMaterialChangeAt ?? "")));
 
+  const events = latestChangeByTopic(graph.changes ?? []);
   const rows: WorldFeedRow[] = pulse.visible.map((row) => {
     const lastMaterial = "lastMaterialChangeAt" in row ? row.lastMaterialChangeAt : null;
+    const topicId = "topicId" in row ? row.topicId : "id" in row ? row.id : "";
+    const event = events.get(topicId);
     const change =
-      "facet" in row
+      event?.summary ||
+      ("facet" in row
         ? changeCopy(row)
         : changeLine({
             briefHeadline: latestBriefByTopic.get(row.id)?.headline,
             changeSummary: latestByTopic.get(row.id)?.changeSummary,
-          });
+          }));
     return {
       slug: row.slug,
       name: row.name,
       kind: "kind" in row && typeof row.kind === "string" ? row.kind : topicKind(row),
       child: "facetChild" in row ? row.facetChild : null,
-      lastMaterialChangeAt: lastMaterial,
+      lastMaterialChangeAt: event?.createdAt ?? lastMaterial,
       change,
       breakthrough: "breakthrough" in row && row.breakthrough,
       worldMoved: movedToday(lastMaterial, now),
-      changeKind: "changeKind" in row && row.changeKind ? changeKindLabel(row.changeKind) : null,
+      changeKind: event ? changeKindLabel(event.kind) : "changeKind" in row && row.changeKind ? changeKindLabel(row.changeKind) : null,
     };
   });
 

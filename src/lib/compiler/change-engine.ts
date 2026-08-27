@@ -81,6 +81,15 @@ export function detectClaimChanges(input: {
   return events;
 }
 
+export function latestChangeByTopic(changes: ChangeEvent[]): Map<string, ChangeEvent> {
+  const out = new Map<string, ChangeEvent>();
+  for (const event of changes) {
+    const prev = out.get(event.topicId);
+    if (!prev || event.createdAt > prev.createdAt) out.set(event.topicId, event);
+  }
+  return out;
+}
+
 export function relationshipChange(input: {
   topicId: string;
   relatedTopicId: string;
