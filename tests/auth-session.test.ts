@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { exposeDevLoginLink } from "@/lib/auth/magic-link";
 import { decodeSession, encodeSession, newSession } from "@/lib/auth/session";
 import {
   consumeLoginToken,
@@ -27,5 +30,17 @@ describe("magic link store", () => {
     await expect(
       setFollow({ userId: user.id, topicId: "topic_huggingface", slug: "huggingface", action: "follow" }),
     ).rejects.toThrow(/not_followable/);
+  });
+});
+
+describe("production sign-in does not leak the raw link", () => {
+  it("keeps the one-time URL off the sign-in page", () => {
+    const form = readFileSync(path.join(process.cwd(), "src/components/sign-in-form.tsx"), "utf8");
+    const request = readFileSync(path.join(process.cwd(), "src/app/api/auth/request/route.ts"), "utf8");
+    expect(form).not.toMatch(/loginUrl/);
+    expect(form).not.toMatch(/one-time link/);
+    expect(form).toMatch(/Check your email for a 15-minute link/);
+    expect(request).toMatch(/result\.sent/);
+    expect(exposeDevLoginLink()).toBe(true);
   });
 });

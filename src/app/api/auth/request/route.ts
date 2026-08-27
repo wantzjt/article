@@ -11,7 +11,21 @@ export async function POST(request: Request) {
   }
   try {
     const result = await requestMagicLink(email, safeNextPath(body?.next));
-    return NextResponse.json({ ok: true, ...result });
+    if (result.sent) {
+      return NextResponse.json({ ok: true, sent: true, email: result.email });
+    }
+    if (result.loginUrl) {
+      return NextResponse.json({
+        ok: true,
+        sent: false,
+        email: result.email,
+        loginUrl: result.loginUrl,
+      });
+    }
+    return NextResponse.json(
+      { ok: false, sent: false, error: result.error ?? "send_failed" },
+      { status: 503 },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "auth_failed";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });

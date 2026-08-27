@@ -8,10 +8,15 @@ export function safeNextPath(raw: string | null | undefined): string {
   return raw;
 }
 
+export function exposeDevLoginLink(): boolean {
+  return process.env.NODE_ENV !== "production" || process.env.AUTH_DEV_LINKS === "1";
+}
+
 export async function requestMagicLink(email: string, nextPath = "/"): Promise<{
   email: string;
   sent: boolean;
   loginUrl?: string;
+  error?: string;
 }> {
   const user = await upsertUserByEmail(email);
   const token = await issueLoginToken(user.id);
@@ -23,9 +28,11 @@ export async function requestMagicLink(email: string, nextPath = "/"): Promise<{
     subject: `Sign in to ${brand.productName}`,
     html,
   });
+  if (mail.sent) return { email: user.email, sent: true };
   return {
     email: user.email,
-    sent: mail.sent,
-    loginUrl: mail.sent ? undefined : loginUrl,
+    sent: false,
+    error: mail.error ?? "send_failed",
+    loginUrl: exposeDevLoginLink() ? loginUrl : undefined,
   };
 }

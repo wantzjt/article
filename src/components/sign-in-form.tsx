@@ -5,31 +5,32 @@ import { useState } from "react";
 export function SignInForm({ nextPath }: { nextPath: string }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [loginUrl, setLoginUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setStatus("sending");
     setError(null);
-    setLoginUrl(null);
     try {
       const response = await fetch("/api/auth/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, next: nextPath }),
       });
-      const body = (await response.json()) as { ok?: boolean; sent?: boolean; loginUrl?: string; error?: string };
-      if (!response.ok || !body.ok) {
+      const body = (await response.json()) as { ok?: boolean; sent?: boolean; error?: string };
+      if (!response.ok || !body.ok || !body.sent) {
         setStatus("error");
-        setError(body.error === "invalid_email" ? "Enter a real email." : "Could not start sign-in.");
+        setError(
+          body.error === "invalid_email"
+            ? "Enter a real email."
+            : "Could not send the sign-in email. Try again in a minute.",
+        );
         return;
       }
       setStatus("sent");
-      if (body.loginUrl) setLoginUrl(body.loginUrl);
     } catch {
       setStatus("error");
-      setError("Could not start sign-in.");
+      setError("Could not send the sign-in email.");
     }
   }
 
@@ -53,17 +54,8 @@ export function SignInForm({ nextPath }: { nextPath: string }) {
       >
         {status === "sending" ? "Sending" : "Email a sign-in link"}
       </button>
-      {status === "sent" && !loginUrl ? (
+      {status === "sent" ? (
         <p className="text-[0.9375rem] leading-6 text-ink">Check your email for a 15-minute link.</p>
-      ) : null}
-      {loginUrl ? (
-        <p className="text-[0.9375rem] leading-6">
-          Email sending is not wired yet.{" "}
-          <a href={loginUrl} className="underline decoration-rule underline-offset-2 hover:decoration-ink">
-            Open your one-time link
-          </a>
-          .
-        </p>
       ) : null}
       {error ? <p className="text-[0.9375rem] leading-6 text-status-disputed">{error}</p> : null}
     </form>
