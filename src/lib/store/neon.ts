@@ -287,6 +287,24 @@ function mapTopic(row: Record<string, unknown>): TopicRecord {
   };
 }
 
+export async function insertSpendEventToNeon(event: SpendEvent): Promise<void> {
+  const sql = db();
+  await sql.query(
+    `INSERT INTO ai_spend_events (id, day, stage, topic_id, model, cost_usd, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      event.id,
+      event.day,
+      event.stage,
+      event.topicId,
+      event.model,
+      event.costUsd,
+      event.createdAt,
+    ],
+  );
+}
+
 export async function updateTopicEntityMetaToNeon(topicId: string, entityMeta: TopicEntityMeta): Promise<void> {
   const sql = db();
   await sql.query(`UPDATE topics SET entity_meta = $2::jsonb, updated_at = now() WHERE id = $1`, [

@@ -1,6 +1,6 @@
 export const EXTRACT_STAGE_TIMEOUT_MS = 120_000;
 export const VERIFY_STAGE_TIMEOUT_MS = 120_000;
-export const VERIFY_CALL_TIMEOUT_MS = 120_000;
+export const VERIFY_CALL_TIMEOUT_MS = 20_000;
 export const CLUSTER_STAGE_TIMEOUT_MS = 90_000;
 
 export class StageTimeoutError extends Error {
@@ -33,21 +33,25 @@ export async function runWithStageTimeout<T>(
   const started = Date.now();
   const signal = stageSignal(ms);
   try {
-    return await new Promise<T>((resolve, reject) => {
-      const fail = () => reject(new StageTimeoutError(stage, Date.now() - started));
-      if (signal.aborted) {
-        fail();
-        return;
-      }
-      signal.addEventListener("abort", fail, { once: true });
-      work(signal).then(resolve, (error: unknown) => {
-        if (signal.aborted || isAbortError(error)) {
+    return await Promise.race([
+      work(signal),
+      new Promise<T>((_, reject) => {
+        const fail = () => reject(new StageTimeoutError(stage, Date.now() - started));
+        if (signal.aborted) {
           fail();
           return;
         }
-        reject(error);
-      });
-    });
+        const timer = setTimeout(fail, ms);
+        signal.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(timer);
+            fail();
+          },
+          { once: true },
+        );
+      }),
+    ]);
   } catch (error) {
     if (error instanceof StageTimeoutError) throw error;
     if (signal.aborted || isAbortError(error)) {

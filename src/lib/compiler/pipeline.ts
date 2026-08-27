@@ -321,6 +321,13 @@ export async function ingestTopic(slug: string): Promise<{ topicId: string; runI
           ];
         });
         candidates = mergeDuplicateClaims(candidates);
+        logPipeline({
+          runId,
+          topicId: topic.id,
+          stage: "verify",
+          claimsProposed: candidates.length,
+          message: `verify_start chunk_${chunkIndex + 1}`,
+        });
 
         stage = "verify";
         const knownClaims = await store.listClaimsForTopic(topic.id);

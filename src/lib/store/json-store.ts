@@ -14,7 +14,13 @@ import { assembleTopic, emptyGraph, type GraphSnapshot, type PipelineRunRecord, 
 import { glm53Fixture } from "@/lib/fixture/glm-5-3";
 import { SEED_ENTITIES } from "@/lib/seed/entities";
 import { topicKind } from "@/lib/compiler/taxonomy";
-import { loadGraphFromNeon, saveGraphToNeon, updateTopicEntityMetaToNeon, upsertSourcesToNeon } from "./neon";
+import {
+  insertSpendEventToNeon,
+  loadGraphFromNeon,
+  saveGraphToNeon,
+  updateTopicEntityMetaToNeon,
+  upsertSourcesToNeon,
+} from "./neon";
 
 const DATA_PATH = path.join(process.cwd(), "data", "graph.json");
 
@@ -320,7 +326,7 @@ export async function listPublishedBriefs(): Promise<Array<BriefRecord & { topic
 export async function recordSpend(input: Omit<SpendEvent, "id" | "createdAt" | "day"> & { costUsd: number }): Promise<void> {
   const graph = await load();
   const now = new Date();
-  graph.spend.push({
+  const event: SpendEvent = {
     id: randomUUID(),
     day: now.toISOString().slice(0, 10),
     createdAt: now.toISOString(),
@@ -328,8 +334,22 @@ export async function recordSpend(input: Omit<SpendEvent, "id" | "createdAt" | "
     topicId: input.topicId,
     model: input.model,
     costUsd: input.costUsd,
-  });
-  await persist(graph);
+  };
+  graph.spend.push(event);
+  memory = graph;
+  if (process.env.VITEST) return;
+  if (process.env.DATABASE_URL) {
+    try {
+      await insertSpendEventToNeon(event);
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          kind: "citationforge.neon_persist_failed",
+          message: error instanceof Error ? error.message : "unknown",
+        }),
+      );
+    }
+  }
 }
 
 export async function modelSpendTodayUsd(): Promise<number> {

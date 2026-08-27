@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   EXTRACT_STAGE_TIMEOUT_MS,
   StageTimeoutError,
+  VERIFY_CALL_TIMEOUT_MS,
   VERIFY_STAGE_TIMEOUT_MS,
   runWithStageTimeout,
 } from "@/lib/compiler/timeout";
 
 describe("ingest stage timeouts", () => {
-  it("uses 120s budgets for extract and verify", () => {
+  it("uses 120s extract and a short verify call budget", () => {
     expect(EXTRACT_STAGE_TIMEOUT_MS).toBe(120_000);
     expect(VERIFY_STAGE_TIMEOUT_MS).toBe(120_000);
+    expect(VERIFY_CALL_TIMEOUT_MS).toBe(20_000);
   });
 
   it("returns when work finishes inside the budget", async () => {
