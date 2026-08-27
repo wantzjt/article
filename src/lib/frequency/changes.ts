@@ -1,16 +1,27 @@
 import { topicKind } from "@/lib/compiler/taxonomy";
-import { changeLine, onPulse, sourceCountsByTopicId } from "@/lib/render/topic-view";
+import { changeLine, lastRetrievedByTopicId, onPulse, sourceCountsByTopicId } from "@/lib/render/topic-view";
 import type { GraphSnapshot } from "@/lib/store/graph";
-import { inferFacet } from "./facets";
+import { topicIdFromSource } from "@/lib/store/graph";
+import type { ClassificationMap } from "./classify";
+import { classifyFacet } from "./facets";
 import type { FrequencyChange, FrequencyProfile } from "./rank";
 
 export function changesFromGraph(
   graph: GraphSnapshot,
   profile: FrequencyProfile | null,
-  now = new Date(),
+  classifications: ClassificationMap = {},
 ): FrequencyChange[] {
   const followed = new Set(profile?.follows.map((row) => row.topicId) ?? []);
   const sourceCounts = sourceCountsByTopicId(graph.sources);
+  const latestSource = lastRetrievedByTopicId(graph.sources);
+  const sourceByTopic = new Map<string, { url: string; domain: string }>();
+  for (const source of graph.sources) {
+    const topicId = topicIdFromSource(source);
+    if (!topicId) continue;
+    if (latestSource.get(topicId) === source.retrievedAt) {
+      sourceByTopic.set(topicId, { url: source.canonicalUrl, domain: source.publisherDomain });
+    }
+  }
   const claimCounts = new Map<string, number>();
   const disputed = new Set<string>();
   for (const claim of graph.claims) {
@@ -45,6 +56,8 @@ export function changesFromGraph(
     const headline = latestBrief.get(topic.id)?.headline ?? "";
     const changeSummary = latestVersion.get(topic.id)?.changeSummary ?? "";
     const text = `${topic.name} ${kind} ${headline} ${changeSummary} ${topic.description}`;
+    const classified = classifications[topic.id] ?? classifyFacet({ kind, text });
+    const source = sourceByTopic.get(topic.id);
     rows.push({
       topicId: topic.id,
       slug: topic.slug,
@@ -59,7 +72,10 @@ export function changesFromGraph(
       hasBrief: latestBrief.has(topic.id),
       headline,
       changeSummary,
-      facet: inferFacet({ kind, text }),
+      facet: classified.facet,
+      facetChild: classified.child,
+      sourceUrl: source?.url ?? null,
+      sourceDomain: source?.domain ?? null,
     });
   }
   return rows;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { brand } from "@/lib/brand";
+import { loadClassifications } from "@/lib/frequency/classify";
 import { hasFollows } from "@/lib/frequency/rank";
 import { renderProfileMorning } from "@/lib/frequency/morning";
 import { listSubscribedProfiles } from "@/lib/frequency/store";
@@ -20,11 +21,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, sent: 0, reason: "resend_not_wired" });
     }
     const graph = await getGraph();
+    const classifications = await loadClassifications(graph);
     const profiles = await listSubscribedProfiles();
     let sent = 0;
     for (const profile of profiles) {
       if (!hasFollows(profile)) continue;
-      const morning = renderProfileMorning(graph, profile);
+      const morning = renderProfileMorning(graph, profile, new Date(), classifications);
       const result = await sendEmail({
         to: profile.email,
         subject: `Your Frequency — ${morning.dateLabel}`,

@@ -137,3 +137,10 @@ CREATE TABLE IF NOT EXISTS frequency_facets (
   weight integer NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, topic_id, facet)
 );
+
+CREATE TABLE IF NOT EXISTS frequency_classifications (
+  subject_id text PRIMARY KEY,
+  facet text NOT NULL,
+  child text,
+  classified_at timestamptz NOT NULL DEFAULT now()
+);

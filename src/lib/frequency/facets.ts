@@ -41,16 +41,45 @@ export function clampFacetWeight(value: number): number {
   return Math.max(FACET_MIN, Math.min(FACET_MAX, Math.round(value)));
 }
 
+export type FacetClass = {
+  facet: Facet;
+  child: string | null;
+};
+
+const CHILD_PATTERNS: Array<[Facet, string, RegExp]> = [
+  ["technology", "robotics", /\b(robot|humanoid|optimus|unitree|boston dynamics|figure ai|apptronik|agility robotics)\b/i],
+  ["regulatory", "export-controls", /\bexport control/i],
+  ["economic", "funding", /\b(series [a-d]|raised|funding round|ipo)\b/i],
+];
+
 /** Heuristic facet for v0. Compiler facets come later; this only ranks. */
 export function inferFacet(input: { kind: string; text: string }): Facet {
-  const blob = input.text;
-  for (const [facet, pattern] of KEYWORD_FACETS) {
-    if (pattern.test(blob)) return facet;
-  }
-  return KIND_FACET[input.kind] ?? "technology";
+  return classifyFacet(input).facet;
 }
 
-/** Tune down is quieter, never a hide. −2 → 0.2, 0 → 1, +2 → 1.8 */
+export function classifyFacet(input: { kind: string; text: string }): FacetClass {
+  const blob = input.text;
+  const childHit = CHILD_PATTERNS.find((row) => row[2].test(blob));
+  if (childHit) return { facet: childHit[0], child: childHit[1] };
+  let facet: Facet = KIND_FACET[input.kind] ?? "technology";
+  for (const [next, pattern] of KEYWORD_FACETS) {
+    if (pattern.test(blob)) {
+      facet = next;
+      break;
+    }
+  }
+  return { facet, child: null };
+}
+
+const MULTIPLIER: Record<number, number> = {
+  [-2]: 0.25,
+  [-1]: 0.6,
+  [0]: 1,
+  [1]: 1.5,
+  [2]: 2,
+};
+
+/** Positive relevance only. Mute is the only hard zero. */
 export function facetMultiplier(weight: number): number {
-  return 1 + 0.4 * clampFacetWeight(weight);
+  return MULTIPLIER[clampFacetWeight(weight)] ?? 1;
 }

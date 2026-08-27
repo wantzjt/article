@@ -1,6 +1,6 @@
 import { compileBlocked } from "@/lib/compiler/compile-priority";
 import type { TopicStatus } from "@/lib/compiler/types";
-import { facetMultiplier, inferFacet, type Facet } from "./facets";
+import { facetMultiplier, type Facet } from "./facets";
 
 export type FrequencyChange = {
   topicId: string;
@@ -17,6 +17,9 @@ export type FrequencyChange = {
   headline: string;
   changeSummary: string;
   facet: Facet;
+  facetChild: string | null;
+  sourceUrl: string | null;
+  sourceDomain: string | null;
 };
 
 export type FollowState = {
@@ -40,6 +43,7 @@ export type RankedChange = FrequencyChange & {
   followed: boolean;
   muted: boolean;
   breakthrough: boolean;
+  reasons: string[];
 };
 
 export const MATERIAL_THRESHOLD = 0.62;
@@ -78,6 +82,7 @@ export function hasFollows(profile: FrequencyProfile | null | undefined): boolea
 /**
  * Frequency is a projection: mute is the only hard exclude.
  * Material world movement can interrupt a low personal weight.
+ * Ranking is deterministic. No LLM.
  */
 export function rankFrequency(
   changes: FrequencyChange[],
@@ -94,10 +99,19 @@ export function rankFrequency(
     const global = globalSignificance(change, now);
     const personal = personalRelevance(change, profile);
     const isFollowed = followed.has(change.topicId);
-    const breakthrough = !isFollowed && global >= MATERIAL_THRESHOLD;
+    const material = global >= MATERIAL_THRESHOLD;
+    const lowPersonal = personal < 0.7;
+    const breakthrough = material && (!isFollowed || lowPersonal);
     if (!isFollowed && !breakthrough) continue;
+    const reasons: string[] = [];
+    if (isFollowed) reasons.push("followed");
+    else reasons.push("unfollowed");
+    reasons.push(`facet ${change.facet}${change.facetChild ? `/${change.facetChild}` : ""} ×${personal.toFixed(2)}`);
+    reasons.push(`global ${global.toFixed(2)}`);
+    if (change.disputed) reasons.push("disagreement");
+    if (breakthrough) reasons.push("breakthrough material");
     const score = isFollowed
-      ? global * personal + (global >= MATERIAL_THRESHOLD && personal < 0.7 ? global * 0.25 : 0)
+      ? global * personal + (breakthrough ? global * 0.35 * (1 - Math.min(personal, 1)) : 0)
       : global * UNFOLLOWED_PERSONAL + global * 0.55;
     ranked.push({
       ...change,
@@ -107,6 +121,7 @@ export function rankFrequency(
       followed: isFollowed,
       muted: false,
       breakthrough,
+      reasons,
     });
   }
 

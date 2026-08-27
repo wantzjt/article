@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inferFacet } from "@/lib/frequency/facets";
+import { classifyFacet, facetMultiplier, inferFacet } from "@/lib/frequency/facets";
 import {
   globalSignificance,
   hasFollows,
@@ -23,6 +23,9 @@ function change(partial: Partial<FrequencyChange> & Pick<FrequencyChange, "slug"
     headline: "Material movement recorded.",
     changeSummary: "Material movement recorded.",
     facet: "technology",
+    facetChild: null,
+    sourceUrl: "https://example.com/source",
+    sourceDomain: "example.com",
     ...partial,
   };
 }
@@ -34,6 +37,21 @@ describe("inferFacet", () => {
     expect(inferFacet({ kind: "policy", text: "California AI bills" })).toBe("regulatory");
     expect(inferFacet({ kind: "model", text: "GLM-5.3 release and weights" })).toBe("technology");
     expect(inferFacet({ kind: "company", text: "New CEO appointed today" })).toBe("personnel");
+  });
+
+  it("labels Technology → Robotics when the copy already says so", () => {
+    expect(classifyFacet({ kind: "company", text: "Unitree humanoid robot launch" })).toEqual({
+      facet: "technology",
+      child: "robotics",
+    });
+  });
+
+  it("maps tuner steps to positive multipliers only", () => {
+    expect(facetMultiplier(-2)).toBe(0.25);
+    expect(facetMultiplier(-1)).toBe(0.6);
+    expect(facetMultiplier(0)).toBe(1);
+    expect(facetMultiplier(1)).toBe(1.5);
+    expect(facetMultiplier(2)).toBe(2);
   });
 });
 
@@ -105,6 +123,8 @@ describe("rankFrequency", () => {
     const ranked = rankFrequency([glm, person], profileUp, now);
     expect(ranked.map((row) => row.slug)).toEqual(["glm-5-3", "jensen-huang"]);
     expect(ranked[0].score).toBeGreaterThan(ranked[1].score);
+    expect(ranked[1].personalRelevance).toBe(0.25);
+    expect(ranked.every((row) => row.personalRelevance > 0)).toBe(true);
   });
 
   it("lets a material unfollowed change interrupt", () => {
@@ -118,6 +138,7 @@ describe("rankFrequency", () => {
     expect(ranked.some((row) => row.slug === "ca-sb-53" && row.breakthrough)).toBe(true);
     expect(hasFollows(profile)).toBe(true);
     expect(globalSignificance(bills, now)).toBeGreaterThan(0.62);
+    expect(ranked.find((row) => row.slug === "ca-sb-53")?.reasons.join(" ")).toMatch(/breakthrough/);
   });
 });
 
@@ -132,6 +153,7 @@ describe("morning email", () => {
         followed: true,
         muted: false,
         breakthrough: false,
+        reasons: ["followed"],
       })),
     );
     expect(rows).toHaveLength(8);
@@ -141,7 +163,8 @@ describe("morning email", () => {
       rows,
       unsubUrl: "https://article.fm/unsubscribe?t=abc",
     });
-    expect(html).toContain("/topic/t-0");
+    expect(html).toContain("/topic/t-0#what-changed");
+    expect(html).toContain("example.com");
     expect(html).toContain("Unsubscribe");
     expect(html).toContain("Your Frequency");
     expect(html).not.toContain("7,000");

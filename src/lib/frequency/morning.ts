@@ -1,6 +1,7 @@
-import { changesFromGraph } from "./changes";
+import type { ClassificationMap } from "./classify";
 import { morningRows, renderMorningFrequencyHtml, unsubscribeUrl } from "./email";
-import { hasFollows, rankFrequency, type FrequencyProfile, type RankedChange } from "./rank";
+import { buildFrequency } from "./engine";
+import type { FrequencyProfile, RankedChange } from "./rank";
 import { unsubTokenFor } from "./store";
 import type { GraphSnapshot } from "@/lib/store/graph";
 
@@ -17,14 +18,16 @@ export function renderProfileMorning(
   graph: GraphSnapshot,
   profile: FrequencyProfile,
   now = new Date(),
-): { html: string; count: number; dateLabel: string; rows: RankedChange[] } {
-  const ranked = hasFollows(profile) ? rankFrequency(changesFromGraph(graph, profile, now), profile, now) : [];
-  const rows = morningRows(ranked);
+  classifications: ClassificationMap = {},
+): { html: string; count: number; dateLabel: string; rows: RankedChange[]; orderKey: string } {
+  const payload = buildFrequency(graph, profile, classifications, now);
+  const rows = morningRows(payload.ranked);
   const dateLabel = dateLabelUtc(now);
   return {
     dateLabel,
     count: rows.length,
     rows,
+    orderKey: payload.orderKey,
     html: renderMorningFrequencyHtml({
       email: profile.email,
       dateLabel,

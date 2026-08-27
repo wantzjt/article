@@ -51,13 +51,16 @@ export function FrequencyControls({
       <div className="flex flex-wrap gap-4">
         {follow ? (
           <>
+            <span className="inline-flex min-h-11 items-center font-mono text-[12px]/[16px] text-ink">
+              Following
+            </span>
             <button
               type="button"
               disabled={pending}
               onClick={() => post("/api/frequency/follow", { slug, action: "unfollow" })}
               className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink disabled:opacity-50"
             >
-              Following
+              Unfollow
             </button>
             <button
               type="button"

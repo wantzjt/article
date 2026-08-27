@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentProfile } from "@/lib/auth/current-user";
 import { SendFrequencyButton } from "@/components/send-frequency-button";
+import { loadClassifications } from "@/lib/frequency/classify";
 import { changeCopy } from "@/lib/frequency/changes";
 import { renderProfileMorning } from "@/lib/frequency/morning";
 import { getGraph } from "@/lib/store/json-store";
@@ -14,7 +15,8 @@ export default async function FrequencyPreviewPage() {
   const current = await currentProfile();
   if (!current) redirect("/signin?next=/frequency/preview");
   const graph = await getGraph();
-  const morning = renderProfileMorning(graph, current.profile);
+  const classifications = await loadClassifications(graph);
+  const morning = renderProfileMorning(graph, current.profile, new Date(), classifications);
   const rows = morning.rows;
   const html = morning.html;
 
@@ -34,7 +36,7 @@ export default async function FrequencyPreviewPage() {
         <ol className="space-y-4">
           {rows.map((row) => (
             <li key={row.topicId} className="border-t border-rule pt-3">
-              <Link href={`/topic/${row.slug}`} className="font-serif text-[1.0625rem] leading-6 hover:underline">
+              <Link href={`/topic/${row.slug}#what-changed`} className="font-serif text-[1.0625rem] leading-6 hover:underline">
                 {row.name}
               </Link>
               <p className="meta mt-1">{row.breakthrough ? "material" : row.facet}</p>

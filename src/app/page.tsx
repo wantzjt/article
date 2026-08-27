@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { FrequencyList } from "@/components/frequency-list";
 import { StatusChip } from "@/components/status-chip";
 import { currentProfile } from "@/lib/auth/current-user";
 import { topicKind } from "@/lib/compiler/taxonomy";
-import { changesFromGraph, changeCopy } from "@/lib/frequency/changes";
-import { hasFollows, rankFrequency } from "@/lib/frequency/rank";
+import { loadClassifications } from "@/lib/frequency/classify";
+import { changeCopy } from "@/lib/frequency/changes";
+import { buildFrequency } from "@/lib/frequency/engine";
+import { hasFollows } from "@/lib/frequency/rank";
 import {
   changeLine,
   formatCount,
@@ -11,7 +14,6 @@ import {
   formatTime,
   movedToday,
   onPulse,
-  PULSE_LIMIT,
   pulseTopics,
   radarTopics,
   topicIndex,
@@ -50,11 +52,11 @@ export default async function HomePage() {
   }
   const current = await currentProfile();
   const frequencyOn = hasFollows(current?.profile ?? null);
-  const ranked = frequencyOn && current
-    ? rankFrequency(changesFromGraph(graph, current.profile, now), current.profile, now)
-    : [];
-  const pulse = frequencyOn
-    ? { visible: ranked.slice(0, PULSE_LIMIT), rest: ranked.slice(PULSE_LIMIT) }
+  const classifications = frequencyOn ? await loadClassifications(graph) : {};
+  const payload =
+    frequencyOn && current ? buildFrequency(graph, current.profile, classifications, now) : null;
+  const pulse = payload
+    ? { visible: payload.visible, rest: payload.rest }
     : pulseTopics(moved);
   const radar = radarTopics(graph, now);
   const coverage = warehouseCoverage(graph);
@@ -97,7 +99,10 @@ export default async function HomePage() {
       <section>
         <h2 className="kicker">{frequencyOn ? "Your Frequency" : "The world"}</h2>
         {frequencyOn ? (
-          <p className="meta mt-2">A projection of the shared graph. Tune changes order, not facts.</p>
+          <p className="meta mt-2">
+            A projection of the shared graph. The signal mark means the world moved. A restream means
+            your Frequency reordered.
+          </p>
         ) : null}
         {pulse.visible.length === 0 ? (
           <p className="mt-4 text-[0.9375rem] leading-6 text-ink-quiet">
@@ -106,53 +111,59 @@ export default async function HomePage() {
               : "No material changes in the recent window."}
           </p>
         ) : (
-          <ul className="mt-4">
-            {pulse.visible.map((row) => {
-              const slug = row.slug;
-              const name = row.name;
-              const status = row.status;
-              const lastMaterial = "lastMaterialChangeAt" in row ? row.lastMaterialChangeAt : null;
-              const lastVerified = "lastVerifiedAt" in row ? row.lastVerifiedAt : null;
-              const kind = "kind" in row && typeof row.kind === "string" ? row.kind : topicKind(row);
-              const change =
-                "facet" in row
-                  ? changeCopy(row)
-                  : changeLine({
-                      briefHeadline: latestBriefByTopic.get(row.id)?.headline,
-                      changeSummary: latestByTopic.get(row.id)?.changeSummary,
-                    });
-              const today = movedToday(lastMaterial, now);
-              const breakthrough = "breakthrough" in row && row.breakthrough;
-              return (
-                <li
-                  key={slug}
-                  className={`border-t border-rule py-3 first:border-t-0 pl-3 ${today ? "border-l-2 border-l-signal" : "border-l-2 border-l-rule"}`}
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <Link
-                      href={`/topic/${slug}`}
-                      className="font-serif text-[1.0625rem] leading-6 tracking-tight text-ink hover:underline"
-                    >
-                      {name}
-                    </Link>
-                    <StatusChip status={status} />
-                  </div>
-                  <p className="meta mt-1">
-                    {kind}
-                    {breakthrough ? " · material interrupt" : ""}
-                  </p>
-                  <p className="mt-1 flex gap-2 text-[0.9375rem] leading-6 text-ink">
-                    <span
-                      className={`mt-[0.55rem] size-1.5 shrink-0 rounded-full ${today ? "bg-signal" : "bg-rule"}`}
-                      aria-hidden
-                    />
-                    <span>{change}</span>
-                  </p>
-                  <p className="meta mt-1">Verified {formatTime(lastVerified)}</p>
-                </li>
-              );
-            })}
-          </ul>
+          <FrequencyList orderKey={payload?.orderKey ?? "world"}>
+            <ul className="mt-4">
+              {pulse.visible.map((row) => {
+                const slug = row.slug;
+                const name = row.name;
+                const status = row.status;
+                const lastMaterial = "lastMaterialChangeAt" in row ? row.lastMaterialChangeAt : null;
+                const lastVerified = "lastVerifiedAt" in row ? row.lastVerifiedAt : null;
+                const kind = "kind" in row && typeof row.kind === "string" ? row.kind : topicKind(row);
+                const change =
+                  "facet" in row
+                    ? changeCopy(row)
+                    : changeLine({
+                        briefHeadline: latestBriefByTopic.get(row.id)?.headline,
+                        changeSummary: latestByTopic.get(row.id)?.changeSummary,
+                      });
+                const today = movedToday(lastMaterial, now);
+                const breakthrough = "breakthrough" in row && row.breakthrough;
+                const child = "facetChild" in row ? row.facetChild : null;
+                return (
+                  <li
+                    key={slug}
+                    data-frequency-slug={slug}
+                    className={`border-t border-rule py-3 first:border-t-0 pl-3 ${today ? "border-l-2 border-l-signal" : "border-l-2 border-l-rule"}`}
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <Link
+                        href={`/topic/${slug}#what-changed`}
+                        className="font-serif text-[1.0625rem] leading-6 tracking-tight text-ink hover:underline"
+                      >
+                        {name}
+                      </Link>
+                      <StatusChip status={status} />
+                    </div>
+                    <p className="meta mt-1">
+                      {kind}
+                      {child ? ` · ${child}` : ""}
+                      {today ? " · world moved" : ""}
+                      {breakthrough ? " · material interrupt" : ""}
+                    </p>
+                    <p className="mt-1 flex gap-2 text-[0.9375rem] leading-6 text-ink">
+                      <span
+                        className={`mt-[0.55rem] size-1.5 shrink-0 rounded-full ${today ? "bg-signal" : "bg-rule"}`}
+                        aria-hidden
+                      />
+                      <span>{change}</span>
+                    </p>
+                    <p className="meta mt-1">Verified {formatTime(lastVerified)}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          </FrequencyList>
         )}
         {pulse.rest.length > 0 ? (
           <details className="sources mt-2">
@@ -160,7 +171,7 @@ export default async function HomePage() {
             <ul className="mt-1 pb-3">
               {pulse.rest.map((row) => (
                 <li key={row.slug} className="border-t border-rule py-2 first:border-t-0">
-                  <Link href={`/topic/${row.slug}`} className="text-[0.8125rem] leading-5 hover:underline">
+                  <Link href={`/topic/${row.slug}#what-changed`} className="text-[0.8125rem] leading-5 hover:underline">
                     {row.name}
                   </Link>
                   <span className="meta ml-2">{"kind" in row && typeof row.kind === "string" ? row.kind : topicKind(row)}</span>

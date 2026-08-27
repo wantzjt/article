@@ -228,6 +228,8 @@ describe("pulse radar index", () => {
     const llms = readFileSync(path.join(process.cwd(), "src/app/llms.txt/route.ts"), "utf8");
     expect(home).toMatch(/Your Frequency/);
     expect(home).toMatch(/The world/);
+    expect(home).toMatch(/#what-changed/);
+    expect(home).toMatch(/world moved/);
     expect(home).toMatch(/Radar/);
     expect(home).toMatch(/Index/);
     expect(home).toMatch(/Claims come before prose/);

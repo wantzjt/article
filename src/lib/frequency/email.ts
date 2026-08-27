@@ -22,14 +22,22 @@ export function renderMorningFrequencyHtml(input: {
 }): string {
   const items = input.rows
     .map((row) => {
-      const href = `${brand.siteUrl}/topic/${row.slug}`;
+      const href = `${brand.siteUrl}/topic/${row.slug}#what-changed`;
       const line = changeCopy(row);
-      const tag = row.breakthrough ? "material" : row.facet;
+      const tag = row.breakthrough
+        ? "material interrupt"
+        : row.facetChild
+          ? `${row.facet} / ${row.facetChild}`
+          : row.facet;
+      const source = row.sourceUrl
+        ? `<div style="margin-top:6px;font-family:ui-monospace,monospace;font-size:12px;"><a href="${escapeHtml(row.sourceUrl)}" style="color:#7a7266;">${escapeHtml(row.sourceDomain ?? "source")}</a></div>`
+        : "";
       return `<tr>
         <td style="padding:14px 0;border-top:1px solid #e6e0d4;font-family:Georgia,serif;">
           <a href="${href}" style="color:#2c2418;text-decoration:none;font-size:17px;">${escapeHtml(row.name)}</a>
           <div style="margin-top:4px;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7a7266;">${escapeHtml(tag)}</div>
           <div style="margin-top:6px;font-size:15px;line-height:1.45;color:#2c2418;">${escapeHtml(line)}</div>
+          ${source}
         </td>
       </tr>`;
     })

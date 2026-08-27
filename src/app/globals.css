@@ -212,4 +212,15 @@
   details.sources[open] > summary::after {
     content: "−";
   }
+  @keyframes frequency-restream {
+    from {
+      background: color-mix(in oklch, var(--ink) 7%, var(--paper));
+    }
+    to {
+      background: transparent;
+    }
+  }
+  .frequency-restream li {
+    animation: frequency-restream 900ms ease-out;
+  }
 }

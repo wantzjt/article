@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/auth/session";
+import { loadClassifications } from "@/lib/frequency/classify";
 import { renderProfileMorning } from "@/lib/frequency/morning";
 import { getProfile, getUserById, upsertUserByEmail } from "@/lib/frequency/store";
 import { resendConfigured, sendEmail } from "@/lib/mail/resend";
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "no_profile" }, { status: 400 });
   }
   const graph = await getGraph();
-  const morning = renderProfileMorning(graph, profile);
+  const classifications = await loadClassifications(graph);
+  const morning = renderProfileMorning(graph, profile, new Date(), classifications);
   const result = await sendEmail({
     to: email,
     subject: `Your Frequency — ${morning.dateLabel}`,
