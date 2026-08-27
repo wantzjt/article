@@ -23,7 +23,7 @@ export default async function SignInPage({
         <p className="kicker">Your Frequency</p>
         <h1 className="display">Sign in</h1>
         <p className="text-[0.9375rem] leading-6">
-          Email a link. No password. Follows stay on this graph.
+          Email a link. No password. Your Frequency comes with you.
         </p>
       </header>
       {params.error === "expired" ? (

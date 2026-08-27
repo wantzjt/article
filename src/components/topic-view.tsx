@@ -10,7 +10,6 @@ import { topicKind } from "@/lib/compiler/taxonomy";
 import {
   displayDek,
   evidenceLabel,
-  formatCount,
   formatDate,
   formatRelative,
   formatTime,
@@ -161,6 +160,9 @@ export function TopicView({
   const whatChanged = changed.length
     ? changed
     : accepted.filter((claim) => claim.status === "supported").slice(0, 3);
+  const standing = accepted.filter(
+    (claim) => !whatChanged.some((row) => row.id === claim.id) && claim.status !== "disputed",
+  );
   const stub = graph.topic.status === "stub";
   const hasClaims = accepted.length > 0;
   const identity = personIdentity(graph.topic.entityMeta);
@@ -179,17 +181,17 @@ export function TopicView({
     <div className="space-y-8">
       <header className="space-y-3">
         <p className="kicker">{kind}</p>
-        <h1 className={stub && graph.sources.length === 0 ? "font-serif text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
+        <h1 className={stub && graph.sources.length === 0 ? "font-heading text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
           {graph.topic.name}
         </h1>
         {affiliation ? (
-          <p className="meta">{affiliation}</p>
-        ) : hasClaims ? (
+          <p className="text-[0.9375rem] leading-6">{affiliation}</p>
+        ) : (
           <p className="max-w-prose text-[0.9375rem] leading-6">{displayDek(graph.topic.description)}</p>
-        ) : null}
+        )}
         <p className="meta">
           Updated {formatRelative(updatedAt)}
-          {isFreshChange(updatedAt) ? " · ● New" : ""}
+          {isFreshChange(updatedAt) ? " · New" : ""}
         </p>
         {frequency ? (
           <FrequencyControls
@@ -199,52 +201,51 @@ export function TopicView({
             facets={frequency.facets}
           />
         ) : null}
+        {whatChanged[0] ? (
+          <GroundedAsk slug={graph.topic.slug} kind="claim" id={whatChanged[0].id}>
+            <span className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink">
+              Ask
+            </span>
+          </GroundedAsk>
+        ) : graph.sources[0] ? (
+          <GroundedAsk slug={graph.topic.slug} kind="source" id={graph.sources[0].id}>
+            <span className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink">
+              Ask
+            </span>
+          </GroundedAsk>
+        ) : null}
         {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
-        <p className="meta">
-          <StatusChip status={graph.topic.status} />
-          {" · "}
-          {formatCount(graph.sources.length)} sources
-        </p>
-        {hasClaims ? null : (
-          <p className="meta">
-            {graph.sources.length > 0
-              ? "Sources banked · not compiled"
-              : stub
-                ? "Sources still arriving."
-                : `${graph.topic.status} · no compiled claims`}
-          </p>
-        )}
       </header>
 
       {hasClaims ? (
         <>
-          <Section id="what-changed" title="What Changed">
+          <Section id="what-changed" title="What changed">
             {whatChanged.length === 0 ? (
-              <Empty>No material claim movement in the recent window.</Empty>
+              <Empty>Nothing material moved here just now.</Empty>
             ) : (
               whatChanged.map((claim) => <ClaimRow key={claim.id} graph={graph} claim={claim} />)
             )}
           </Section>
 
-          <Section id="evidence" title="Evidence">
-            {accepted.map((claim) => (
-              <ClaimRow key={claim.id} graph={graph} claim={claim} />
-            ))}
-          </Section>
+          {standing.length > 0 ? (
+            <Section id="current-state" title="Current state">
+              {standing.slice(0, 8).map((claim) => (
+                <ClaimRow key={claim.id} graph={graph} claim={claim} />
+              ))}
+            </Section>
+          ) : null}
 
-          <Section id="disagreements" title="Disagreements">
-            {disagreements.length === 0 ? (
-              <Empty>No persisted contradictions.</Empty>
-            ) : (
-              disagreements.map((claim) => (
+          {disagreements.length > 0 ? (
+            <Section id="disagreements" title="Disputed / Watching">
+              {disagreements.map((claim) => (
                 <SourcedPositions key={claim.id} graph={graph} claim={claim} />
-              ))
-            )}
-          </Section>
+              ))}
+            </Section>
+          ) : null}
 
           <Section id="timeline" title="Timeline">
             {graph.versions.length === 0 ? (
-              <Empty>No versions recorded.</Empty>
+              <Empty>No earlier changes yet.</Empty>
             ) : (
               <ol className="space-y-5">
                 {graph.versions.map((version) => (
@@ -258,11 +259,35 @@ export function TopicView({
               </ol>
             )}
           </Section>
+
+          {graph.sources.length > 0 ? (
+            <Section id="sources" title="Sources">
+              <details className="sources">
+                <summary>Sources</summary>
+                <ul className="mt-1 space-y-3 pb-3">
+                  {recent.map((source) => (
+                    <li key={source.id} className="text-[0.8125rem] leading-5">
+                      <p className="text-ink">{source.title}</p>
+                      <p className="font-mono text-[12px]/[16px] text-ink">
+                        <a
+                          className="underline decoration-rule underline-offset-2 hover:decoration-ink"
+                          href={source.canonicalUrl}
+                          rel="nofollow noopener"
+                        >
+                          {source.publisherDomain}
+                        </a>
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </Section>
+          ) : null}
         </>
       ) : (
-        <Section id="latest-evidence" title="Latest evidence">
+        <Section id="sources" title="Sources">
           {graph.sources.length === 0 ? (
-            <Empty>No sources banked on this topic.</Empty>
+            <Empty>Sources still arriving.</Empty>
           ) : (
             <div>
               <p className="meta">Last retrieved {formatTime(lastSource)}</p>
@@ -270,7 +295,7 @@ export function TopicView({
                 {recent.map((source) => (
                   <li key={source.id} className="border-t border-rule py-3 first:border-t-0">
                     <GroundedAsk slug={graph.topic.slug} kind="source" id={source.id}>
-                      <p className="font-serif text-[1.0625rem] leading-6 tracking-tight text-ink">{source.title}</p>
+                      <p className="font-heading text-[1.125rem] leading-6 tracking-tight text-ink">{source.title}</p>
                       <p className="meta mt-1">
                         {source.publisherDomain}
                         {" · "}
@@ -287,9 +312,7 @@ export function TopicView({
               </ul>
               {remainder.length > 0 ? (
                 <details className="sources mt-2">
-                  <summary>
-                    All sources ({formatCount(graph.sources.length)})
-                  </summary>
+                  <summary>Sources</summary>
                   <ul className="mt-1 space-y-3 pb-3">
                     {remainder.map((source) => (
                       <li key={source.id} className="text-[0.8125rem] leading-5">

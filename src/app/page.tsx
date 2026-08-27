@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { FrequencyBoard } from "@/components/frequency-board";
 import { WorldFeed, type WorldFeedRow } from "@/components/world-feed";
 import { currentProfile } from "@/lib/auth/current-user";
 import { changeKindLabel, latestChangeByTopic } from "@/lib/compiler/change-engine";
+import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import { loadClassifications } from "@/lib/frequency/classify";
 import { changeCopy } from "@/lib/frequency/changes";
 import { buildFrequency } from "@/lib/frequency/engine";
+import { explainWhy, frequencyRows } from "@/lib/frequency/explain";
 import { hasFollows } from "@/lib/frequency/rank";
 import {
   changeLine,
@@ -53,13 +56,22 @@ export default async function HomePage({
     frequencyOn && current ? buildFrequency(graph, current.profile, classifications, now) : null;
   const pulse = payload
     ? { visible: payload.visible, rest: payload.rest }
-    : pulseTopics([...graph.topics].filter(onPulse).sort((a, b) => (b.lastMaterialChangeAt ?? "").localeCompare(a.lastMaterialChangeAt ?? "")));
+    : pulseTopics(
+        [...graph.topics]
+          .filter(onPulse)
+          .sort((a, b) => (b.lastMaterialChangeAt ?? "").localeCompare(a.lastMaterialChangeAt ?? "")),
+      );
 
   const events = latestChangeByTopic(graph.changes ?? []);
+  const catalog = graph.topics
+    .filter((topic) => isPublicTopicStatus(topic.status))
+    .map((topic) => ({ slug: topic.slug, name: topic.name }));
+  const names = new Map(graph.topics.map((topic) => [topic.id, { slug: topic.slug, name: topic.name }]));
   const rows: WorldFeedRow[] = pulse.visible.map((row) => {
     const lastMaterial = "lastMaterialChangeAt" in row ? row.lastMaterialChangeAt : null;
     const topicId = "topicId" in row ? row.topicId : "id" in row ? row.id : "";
     const event = events.get(topicId);
+    const ranked = "reasons" in row ? row : null;
     const change =
       event?.summary ||
       ("facet" in row
@@ -77,26 +89,24 @@ export default async function HomePage({
       change,
       breakthrough: "breakthrough" in row && row.breakthrough,
       worldMoved: movedToday(lastMaterial, now),
-      changeKind: event ? changeKindLabel(event.kind) : "changeKind" in row && row.changeKind ? changeKindLabel(row.changeKind) : null,
+      changeKind: event ? changeKindLabel(event.kind) : ranked?.changeKind ? changeKindLabel(ranked.changeKind) : null,
+      why: ranked ? explainWhy(ranked) : null,
     };
   });
 
   return (
     <div className="space-y-10">
-      {frequencyOn ? (
-        <section className="space-y-3">
+      {frequencyOn && current ? (
+        <section className="space-y-4">
           {params.welcome === "1" ? (
             <p className="text-[0.9375rem] leading-6">Your Frequency is live.</p>
           ) : null}
-          <p className="kicker">Your Frequency</p>
-          <p className="text-[0.9375rem] leading-6">
-            The World, tuned around what you follow. A restream means your Frequency updated. A mark
-            means the world changed.
-          </p>
+          <h1 className="display">Your Frequency</h1>
+          <p className="text-[0.9375rem] leading-6">Tuned to the Topics and signals you care about.</p>
+          <FrequencyBoard rows={frequencyRows(current.profile, names)} />
         </section>
       ) : (
         <section className="space-y-4">
-          <p className="kicker">The World</p>
           <h1 className="display">Tune the news around you.</h1>
           <p className="text-[0.9375rem] leading-6">What changed. Why it matters. Where it came from.</p>
           <p>
@@ -111,13 +121,14 @@ export default async function HomePage({
       )}
 
       <section>
-        {!frequencyOn ? <h2 className="kicker">What moved</h2> : null}
+        <h2 className="kicker">{frequencyOn ? "Now" : "The World"}</h2>
         <WorldFeed
           rows={rows}
           rest={pulse.rest.map((row) => ({ slug: row.slug, name: row.name }))}
           orderKey={payload?.orderKey ?? "world"}
           personalized={frequencyOn}
           now={now}
+          topics={catalog}
         />
       </section>
     </div>

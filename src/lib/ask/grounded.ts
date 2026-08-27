@@ -97,7 +97,7 @@ function answerWhatChanged(graph: TopicGraph, claim: ClaimWithEvidence): AskResu
 
 function answerWhyDisputed(claim: ClaimWithEvidence): AskResult {
   if (claim.status !== "disputed") {
-    return refuse("not_disputed", "Article.fm is not calling this disputed.");
+    return refuse("not_disputed", "article.fm is not calling this disputed.");
   }
   const supports = claim.evidence.filter((row) => row.supportType === "supports");
   const disputes = claim.evidence.filter((row) => row.supportType === "disputes");
@@ -154,7 +154,7 @@ export function answerAsk(graph: TopicGraph, target: AskTarget, question: string
     const claim = claimById(graph, target.id);
     if (!claim) return refuse("not_in_graph", "That claim is not on this topic.");
     if (target.kind === "disagreement" && claim.status !== "disputed") {
-      return refuse("not_disputed", "Article.fm is not calling this disputed.");
+      return refuse("not_disputed", "article.fm is not calling this disputed.");
     }
     return answerFromClaim(graph, claim, question);
   }

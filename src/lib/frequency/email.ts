@@ -54,7 +54,7 @@ export function renderMorningFrequencyHtml(input: {
   <div style="max-width:40rem;margin:0 auto;padding:28px 20px;font-family:Georgia,serif;">
     <p style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7a7266;">Your Frequency</p>
     <h1 style="font-size:28px;line-height:1.2;font-weight:normal;margin:8px 0 6px;">${escapeHtml(input.dateLabel)}</h1>
-    <p style="font-size:15px;line-height:1.5;color:#5c564c;">A projection of the shared Article.fm graph. Tune changes order, not facts.</p>
+    <p style="font-size:15px;line-height:1.5;color:#5c564c;">What changed in the Topics you follow.</p>
     ${body}
     <p style="margin-top:28px;font-size:12px;line-height:1.5;color:#7a7266;">
       Sent to ${escapeHtml(input.email)}.

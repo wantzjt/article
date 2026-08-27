@@ -23,10 +23,10 @@ export default async function FrequencyPreviewPage() {
   return (
     <article className="space-y-6">
       <header className="space-y-2">
-        <p className="kicker">Your Frequency</p>
-        <h1 className="display">Morning email</h1>
+        <p className="kicker">Daily</p>
+        <h1 className="display">Your Morning Frequency</h1>
         <p className="text-[0.9375rem] leading-6">
-          Same ranker as Explore. Not a second editorial pipeline.
+          5–8 important changes from the Topics you follow.
         </p>
         <SendFrequencyButton />
       </header>

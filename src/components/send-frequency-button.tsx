@@ -47,7 +47,7 @@ export function SendFrequencyButton() {
         onClick={() => void onSend()}
         className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink disabled:opacity-50"
       >
-        {status === "sending" ? "Sending" : "Send this Frequency"}
+        {status === "sending" ? "Sending" : "Send a test"}
       </button>
       {detail ? (
         <p className={`text-[0.9375rem] leading-6 ${status === "error" ? "text-status-disputed" : "text-ink"}`}>

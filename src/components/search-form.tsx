@@ -2,7 +2,7 @@ export function SearchForm({ query }: { query: string }) {
   return (
     <form action="/search" method="get" className="flex items-end gap-4">
       <label className="block min-w-0 flex-1 space-y-2">
-        <span className="kicker">Topic</span>
+        <span className="kicker">Search</span>
         <input
           type="search"
           name="q"

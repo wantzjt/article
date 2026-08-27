@@ -6,20 +6,26 @@ import { hasFollows } from "@/lib/frequency/rank";
 export async function SiteHeader() {
   const user = await currentUser();
   const current = user ? await currentProfile() : null;
-  const frequencyHref = hasFollows(current?.profile ?? null) ? "/" : "/start";
-  const emailHref = user ? "/frequency/preview" : "/signin?next=/frequency/preview";
-  const who = user?.email.split("@")[0] ?? null;
+  const tuned = hasFollows(current?.profile ?? null);
+  const homeHref = tuned ? "/" : user ? "/start" : "/";
+  const morningHref = user ? "/frequency/preview" : "/signin?next=/frequency/preview";
 
   return (
     <header className="border-b border-rule py-3.5">
       <div className="flex items-baseline justify-between gap-4">
-        <Link href="/" className="font-serif text-[1.375rem] leading-7 tracking-tight text-ink">
+        <Link href="/" className="font-heading text-[1.5rem] leading-7 tracking-tight text-ink lowercase">
           {brand.productName}
         </Link>
-        <nav className="hidden items-baseline gap-4 text-[0.8125rem] leading-5 sm:flex">
-          <Link href={frequencyHref} className="text-ink-quiet hover:text-ink">
-            Your Frequency
-          </Link>
+        <nav className="hidden min-w-0 flex-1 items-baseline gap-4 text-[0.8125rem] leading-5 sm:flex">
+          {user ? (
+            <Link href={homeHref} className="text-ink-quiet hover:text-ink">
+              Your Frequency
+            </Link>
+          ) : (
+            <Link href="/" className="text-ink-quiet hover:text-ink">
+              The World
+            </Link>
+          )}
           <Link href="/explore" className="text-ink-quiet hover:text-ink">
             Explore
           </Link>
@@ -28,15 +34,17 @@ export async function SiteHeader() {
           </Link>
         </nav>
         <div className="flex shrink-0 items-baseline gap-4 text-[0.8125rem] leading-5">
-          <Link href={emailHref} className="text-ink-quiet hover:text-ink">
-            Email
-          </Link>
           {user ? (
-            <form action="/api/auth/logout" method="post">
-              <button type="submit" className="text-ink-quiet hover:text-ink">
-                {who}
-              </button>
-            </form>
+            <>
+              <Link href={morningHref} className="text-ink-quiet hover:text-ink">
+                Morning Frequency
+              </Link>
+              <form action="/api/auth/logout" method="post">
+                <button type="submit" className="text-ink-quiet hover:text-ink">
+                  Account
+                </button>
+              </form>
+            </>
           ) : (
             <Link href="/signin" className="text-ink-quiet hover:text-ink">
               Sign in
@@ -45,7 +53,7 @@ export async function SiteHeader() {
         </div>
       </div>
       <nav className="mt-2 flex gap-4 text-[0.8125rem] leading-5 sm:hidden">
-        <Link href={frequencyHref} className="text-ink-quiet hover:text-ink">
+        <Link href={homeHref} className="text-ink-quiet hover:text-ink">
           Frequency
         </Link>
         <Link href="/explore" className="text-ink-quiet hover:text-ink">

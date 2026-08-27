@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { careLabel, FACET_LABEL, topicEmphasis } from "@/lib/frequency/explain";
 import { FACETS, type Facet } from "@/lib/frequency/facets";
 
 type Follow = { muted: boolean } | null;
@@ -102,6 +103,15 @@ export function FrequencyControls({
           </button>
         )}
       </div>
+      {follow && !follow.muted ? (
+        <p className="meta">
+          In your Frequency: {topicEmphasis(weights, follow.muted)}
+          {" · "}
+          {FACETS.filter((facet) => (weights[facet] ?? 0) !== 0)
+            .map((facet) => `${FACET_LABEL[facet]}: ${careLabel(weights[facet])}`)
+            .join(" · ") || "all Normal"}
+        </p>
+      ) : null}
       {follow && !follow.muted && open ? (
         <div className="space-y-2">
           <p className="meta">Less is quieter, not hidden.</p>
@@ -109,7 +119,7 @@ export function FrequencyControls({
             const value = stepFromWeight(weights[facet]);
             return (
               <div key={facet} className="flex flex-wrap items-center gap-3">
-                <span className="meta w-28 shrink-0">{facet}</span>
+                <span className="meta w-28 shrink-0">{FACET_LABEL[facet]}</span>
                 <div className="flex gap-3">
                   {STEPS.map((step) => (
                     <button

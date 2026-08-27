@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SearchFollow } from "@/components/search-follow";
 import { SearchForm } from "@/components/search-form";
+import { currentProfile } from "@/lib/auth/current-user";
 import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { topicKind } from "@/lib/compiler/taxonomy";
+import { formatRelative, onPulse } from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
 
 export const metadata: Metadata = { title: "Search" };
@@ -28,6 +31,9 @@ export default async function SearchPage({
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const graph = await getGraph();
+  const current = await currentProfile();
+  const followed = new Set(current?.profile.follows.map((row) => row.topicId) ?? []);
+  const now = new Date();
   const hits = q
     ? graph.topics
         .filter((topic) => isPublicTopicStatus(topic.status))
@@ -40,20 +46,28 @@ export default async function SearchPage({
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <p className="kicker">Search</p>
-        <h1 className="display">Find a topic</h1>
+        <h1 className="display">Search</h1>
+        <p className="text-[0.9375rem] leading-6">Find a Topic. Follow it. It enters your Frequency.</p>
       </header>
       <SearchForm query={q} />
       {q && hits.length === 0 ? (
-        <p className="text-[0.9375rem] leading-6 text-ink-quiet">Nothing in the graph matches that.</p>
+        <p className="text-[0.9375rem] leading-6 text-ink-quiet">Nothing matches that yet.</p>
       ) : (
         <ul>
           {hits.map(({ topic }) => (
-            <li key={topic.slug} className="border-t border-rule py-3 first:border-t-0">
-              <Link href={`/topic/${topic.slug}`} className="font-serif text-[1.0625rem] leading-6 hover:underline">
-                {topic.name}
-              </Link>
-              <p className="meta mt-1">{topicKind(topic)}</p>
+            <li key={topic.slug} className="flex items-baseline justify-between gap-3 border-t border-rule py-3 first:border-t-0">
+              <div className="min-w-0">
+                <Link href={`/topic/${topic.slug}`} className="font-heading text-[1.125rem] leading-6 hover:underline">
+                  {topic.name}
+                </Link>
+                <p className="meta mt-1">
+                  {topicKind(topic)}
+                  {onPulse(topic)
+                    ? ` · Updated ${formatRelative(topic.lastMaterialChangeAt, now)}`
+                    : ""}
+                </p>
+              </div>
+              {current ? <SearchFollow slug={topic.slug} following={followed.has(topic.id)} /> : null}
             </li>
           ))}
         </ul>
