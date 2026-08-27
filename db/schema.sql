@@ -102,3 +102,38 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
 
 ALTER TABLE topics ADD COLUMN IF NOT EXISTS kind text;
 ALTER TABLE topics ADD COLUMN IF NOT EXISTS entity_meta jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS frequency_users (
+  id text PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_login_at timestamptz,
+  unsubscribed_at timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS frequency_login_tokens (
+  id text PRIMARY KEY,
+  user_id text NOT NULL REFERENCES frequency_users(id) ON DELETE CASCADE,
+  token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS frequency_follows (
+  user_id text NOT NULL REFERENCES frequency_users(id) ON DELETE CASCADE,
+  topic_id text NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  weight real NOT NULL DEFAULT 1,
+  muted boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, topic_id)
+);
+
+CREATE TABLE IF NOT EXISTS frequency_facets (
+  user_id text NOT NULL REFERENCES frequency_users(id) ON DELETE CASCADE,
+  topic_id text NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  facet text NOT NULL,
+  weight integer NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, topic_id, facet)
+);

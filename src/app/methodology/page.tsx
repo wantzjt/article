@@ -58,10 +58,19 @@ export default async function MethodologyPage() {
       </section>
 
       <section className="space-y-3 border-t border-rule pt-6">
+        <h2 className="kicker">Your Frequency</h2>
+        <p>
+          Frequency is a projection of this graph, not a second truth. Follow and facet weights change
+          prominence. Mute is the only hard exclude. A material change can interrupt a low weight.
+          Morning email uses the same ranker. Pages are not rewritten on each visit.
+        </p>
+      </section>
+
+      <section className="space-y-3 border-t border-rule pt-6">
         <h2 className="kicker">What this is not</h2>
         <p>
-          This is not a content mill, not a personalized feed, and not a daily editorial desk. Pages
-          are not rewritten on each visit. Follow, Frequency, and email are not on this site yet.
+          This is not a content mill and not a daily editorial desk. Tuning does not invent claims or
+          hide the canonical dossier.
         </p>
       </section>
     </article>

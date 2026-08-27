@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { brand } from "@/lib/brand";
 import { TopicView } from "@/components/topic-view";
 import { playMeta } from "@/lib/audio/brief";
+import { currentProfile } from "@/lib/auth/current-user";
+import { compileBlocked } from "@/lib/compiler/compile-priority";
 import { jsonLd, robotsForStatus } from "@/lib/render/topic-view";
 import { getTopicBySlug } from "@/lib/store/json-store";
 
@@ -27,10 +29,24 @@ export default async function TopicPage({ params }: Props) {
   const { slug } = await params;
   const graph = await getTopicBySlug(slug);
   if (!graph) notFound();
+  const current = await currentProfile();
+  const follow = current?.profile.follows.find((row) => row.topicId === graph.topic.id);
 
   return (
     <>
-      <TopicView graph={graph} play={playMeta(graph)} />
+      <TopicView
+        graph={graph}
+        play={playMeta(graph)}
+        frequency={
+          compileBlocked(graph.topic.slug)
+            ? undefined
+            : {
+                signedIn: Boolean(current),
+                follow: follow ? { muted: follow.muted } : null,
+                facets: current?.profile.facets[graph.topic.id] ?? {},
+              }
+        }
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(graph, brand.siteUrl)) }}

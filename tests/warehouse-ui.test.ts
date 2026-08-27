@@ -226,7 +226,8 @@ describe("pulse radar index", () => {
     const dossier = readFileSync(path.join(process.cwd(), "src/components/topic-view.tsx"), "utf8");
     const methodology = readFileSync(path.join(process.cwd(), "src/app/methodology/page.tsx"), "utf8");
     const llms = readFileSync(path.join(process.cwd(), "src/app/llms.txt/route.ts"), "utf8");
-    expect(home).toMatch(/Pulse/);
+    expect(home).toMatch(/Your Frequency/);
+    expect(home).toMatch(/The world/);
     expect(home).toMatch(/Radar/);
     expect(home).toMatch(/Index/);
     expect(home).toMatch(/Claims come before prose/);
@@ -239,7 +240,7 @@ describe("pulse radar index", () => {
     expect(dossier).toMatch(/Sources banked · not compiled/);
     expect(dossier).not.toMatch(/claimText: source/);
     expect(methodology).toMatch(/Last retrieved/);
-    expect(methodology).toMatch(/Follow, Frequency, and email are not on this site yet/);
+    expect(methodology).toMatch(/Frequency is a projection of this graph/);
     expect(llms).toMatch(/does not train models/);
     expect(isAudioTopic("glm-5-3")).toBe(true);
     expect(isAudioTopic("huggingface")).toBe(false);

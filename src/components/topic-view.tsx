@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { FrequencyControls } from "@/components/frequency-controls";
 import { StatusChip } from "@/components/status-chip";
 import { TopicPlay } from "@/components/topic-play";
+import type { Facet } from "@/lib/frequency/facets";
 import type { ClaimWithEvidence, TopicGraph } from "@/lib/store/graph";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import {
@@ -131,9 +133,15 @@ function SourcedPositions({ claim }: { claim: ClaimWithEvidence }) {
 export function TopicView({
   graph,
   play,
+  frequency,
 }: {
   graph: TopicGraph;
   play?: { slug: string; minutes: number } | null;
+  frequency?: {
+    signedIn: boolean;
+    follow: { muted: boolean } | null;
+    facets: Partial<Record<Facet, number>>;
+  };
 }) {
   const accepted = graph.claims.filter((claim) => claim.status !== "rejected");
   const disagreements = accepted.filter((claim) => claim.status === "disputed");
@@ -192,6 +200,14 @@ export function TopicView({
             <p className="meta">This topic is {graph.topic.status} and is not indexed.</p>
           ) : null}
           {play ? <TopicPlay slug={play.slug} minutes={play.minutes} /> : null}
+          {frequency ? (
+            <FrequencyControls
+              slug={graph.topic.slug}
+              signedIn={frequency.signedIn}
+              follow={frequency.follow}
+              facets={frequency.facets}
+            />
+          ) : null}
         </div>
       </header>
 
