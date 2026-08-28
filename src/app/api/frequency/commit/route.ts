@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/auth/session";
-import { interestById, slugsForSelection } from "@/lib/frequency/interests";
+import { interestById, slugsForSelection } from "@/lib/frequency/interest-tree";
 import { replaceInterests, setFollow } from "@/lib/frequency/store";
 import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { getTopicBySlug } from "@/lib/store/json-store";

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { LiveInterestNode } from "@/lib/frequency/interests";
-import { interestById } from "@/lib/frequency/interests";
+import { interestById, type LiveInterestNode } from "@/lib/frequency/interest-tree";
 
 export function InterestStudio({
   signedIn,
