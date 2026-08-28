@@ -5,7 +5,9 @@ import { GroundedAsk } from "@/components/grounded-ask";
 import { StatusChip } from "@/components/status-chip";
 import { TopicPlay } from "@/components/topic-play";
 import type { Facet } from "@/lib/frequency/facets";
+import { TopicHint } from "@/components/topic-hint";
 import type { ClaimWithEvidence, TopicGraph } from "@/lib/store/graph";
+import { publicEvidenceSources } from "@/lib/store/graph";
 import { changeKindLabel } from "@/lib/compiler/change-engine";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import {
@@ -21,6 +23,7 @@ import {
   personIdentity,
   primaryChangeCopy,
   shortExcerpt,
+  topicUpdatedAt,
   warehouseSourceList,
 } from "@/lib/render/topic-view";
 
@@ -198,10 +201,16 @@ export function TopicView({
     identity && (!identity.name || namesAlign(identity.name, graph.topic.name)),
   );
   const kind = topicKind(graph.topic);
-  const recent = latestEvidence(graph.sources);
-  const remainder = warehouseSourceList(graph.sources, graph.sources.length).slice(recent.length);
-  const lastSource = lastRetrievedAt(graph.sources);
-  const updatedAt = graph.topic.lastMaterialChangeAt ?? graph.topic.lastVerifiedAt ?? lastSource;
+  const evidenceSources = publicEvidenceSources(graph);
+  const recent = latestEvidence(evidenceSources);
+  const remainder = warehouseSourceList(evidenceSources, evidenceSources.length).slice(recent.length);
+  const lastSource = lastRetrievedAt(evidenceSources);
+  const updatedAt = topicUpdatedAt({
+    changes: graph.changes ?? [],
+    lastMaterialChangeAt: graph.topic.lastMaterialChangeAt,
+    lastVerifiedAt: graph.topic.lastVerifiedAt,
+    lastSourceAt: lastSource,
+  });
   const affiliation =
     identityFits && identity ? [identity.role, identity.company].filter(Boolean).join(" · ") : "";
 
@@ -209,7 +218,7 @@ export function TopicView({
     <div className="space-y-8">
       <header className="space-y-3">
         <p className="kicker">{kind}</p>
-        <h1 className={stub && graph.sources.length === 0 ? "font-heading text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
+        <h1 className={stub && evidenceSources.length === 0 ? "font-heading text-[1.375rem] leading-7 tracking-tight text-ink-quiet" : "display"}>
           {graph.topic.name}
         </h1>
         {affiliation ? (
@@ -221,6 +230,7 @@ export function TopicView({
           Updated {formatRelative(updatedAt)}
           {isFreshChange(updatedAt) ? " · New" : ""}
         </p>
+        <TopicHint />
         {frequency ? (
           <FrequencyControls
             slug={graph.topic.slug}
@@ -235,8 +245,8 @@ export function TopicView({
               Ask
             </span>
           </GroundedAsk>
-        ) : graph.sources[0] ? (
-          <GroundedAsk slug={graph.topic.slug} kind="source" id={graph.sources[0].id}>
+        ) : evidenceSources[0] ? (
+          <GroundedAsk slug={graph.topic.slug} kind="source" id={evidenceSources[0].id}>
             <span className="inline-flex min-h-11 items-center border-b border-rule font-mono text-[12px]/[16px] text-ink">
               Ask
             </span>
@@ -290,7 +300,7 @@ export function TopicView({
             )}
           </Section>
 
-          {graph.sources.length > 0 ? (
+          {evidenceSources.length > 0 ? (
             <Section id="sources" title="Sources">
               <details className="sources">
                 <summary>Sources</summary>
@@ -316,7 +326,7 @@ export function TopicView({
         </>
       ) : (
         <Section id="sources" title="Sources">
-          {graph.sources.length === 0 ? (
+          {evidenceSources.length === 0 ? (
             <Empty>Sources still arriving.</Empty>
           ) : (
             <div>

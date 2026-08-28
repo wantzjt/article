@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SearchFollow } from "@/components/search-follow";
 import { SearchForm } from "@/components/search-form";
+import { TopicRequest } from "@/components/topic-request";
 import { currentProfile } from "@/lib/auth/current-user";
+import { brand } from "@/lib/brand";
 import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { topicKind } from "@/lib/compiler/taxonomy";
-import { formatRelative, onPulse } from "@/lib/render/topic-view";
+import { changeTimestamp, formatRelative, onPulse } from "@/lib/render/topic-view";
+import { latestChangeByTopic } from "@/lib/compiler/change-engine";
 import { getGraph } from "@/lib/store/json-store";
 
 export const metadata: Metadata = { title: "Search" };
@@ -34,6 +37,7 @@ export default async function SearchPage({
   const current = await currentProfile();
   const followed = new Set(current?.profile.follows.map((row) => row.topicId) ?? []);
   const now = new Date();
+  const events = latestChangeByTopic(graph.changes ?? []);
   const hits = q
     ? graph.topics
         .filter((topic) => isPublicTopicStatus(topic.status))
@@ -51,7 +55,21 @@ export default async function SearchPage({
       </header>
       <SearchForm query={q} />
       {q && hits.length === 0 ? (
-        <p className="text-[0.9375rem] leading-6 text-ink-quiet">Nothing matches that yet.</p>
+        <div className="space-y-4">
+          <p className="text-[0.9375rem] leading-6">
+            {brand.productName} doesn&apos;t have this Topic yet.
+          </p>
+          <p className="text-[0.9375rem] leading-6 text-ink-quiet">
+            Search another Topic or explore what we&apos;re tracking.
+          </p>
+          <p className="meta">{brand.coverageNote}</p>
+          <p>
+            <Link href="/explore" className="inline-flex min-h-11 items-center border-b border-ink font-mono text-[12px]/[16px] text-ink">
+              Explore Topics
+            </Link>
+          </p>
+          <TopicRequest query={q} />
+        </div>
       ) : (
         <ul>
           {hits.map(({ topic }) => (
@@ -63,7 +81,7 @@ export default async function SearchPage({
                 <p className="meta mt-1">
                   {topicKind(topic)}
                   {onPulse(topic)
-                    ? ` · Updated ${formatRelative(topic.lastMaterialChangeAt, now)}`
+                    ? ` · Updated ${formatRelative(changeTimestamp(events.get(topic.id)?.createdAt, topic.lastMaterialChangeAt), now)}`
                     : ""}
                 </p>
               </div>

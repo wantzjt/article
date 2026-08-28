@@ -125,3 +125,19 @@ export function assembleTopic(graph: GraphSnapshot, topic: TopicRecord): TopicGr
     edges: (graph.edges ?? []).filter((row) => row.fromId === topic.id || row.toId === topic.id),
   };
 }
+
+/**
+ * Public Sources are evidence, not the warehouse. Banked hits stay on the
+ * graph for compile; they do not appear as if they support the Topic.
+ */
+export function publicEvidenceSources(graph: TopicGraph): SourceRecord[] {
+  const linked = new Map<string, SourceRecord>();
+  for (const claim of graph.claims) {
+    if (claim.status === "rejected") continue;
+    for (const item of claim.evidence) linked.set(item.source.id, item.source);
+  }
+  if (linked.size > 0) {
+    return [...linked.values()].sort((a, b) => b.retrievedAt.localeCompare(a.retrievedAt));
+  }
+  return graph.sources;
+}

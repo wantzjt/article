@@ -7,7 +7,8 @@ import { neighborTopicIds } from "@/lib/compiler/graph-edges";
 import { compileBlocked } from "@/lib/compiler/compile-priority";
 import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { topicKind } from "@/lib/compiler/taxonomy";
-import { changeLine, moreChangesForTopic, movedToday, onPulse, pulseTopics } from "@/lib/render/topic-view";
+import { brand } from "@/lib/brand";
+import { changeLine, changeTimestamp, moreChangesForTopic, movedToday, onPulse, pulseTopics } from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
 import type { TopicRecord } from "@/lib/compiler/types";
 
@@ -72,13 +73,14 @@ export default async function ExplorePage() {
       changeSummary: event?.summary || latestByTopic.get(row.id)?.changeSummary,
     });
     const briefClaims = graph.briefs.find((brief) => brief.topicId === row.id && brief.status === "published")?.renderData.claimIds.length ?? 0;
+    const changedAt = changeTimestamp(event?.createdAt, row.lastMaterialChangeAt);
     return {
       slug: row.slug,
       name: row.name,
       kind: topicKind(row),
-      lastMaterialChangeAt: event?.createdAt ?? row.lastMaterialChangeAt,
+      lastMaterialChangeAt: changedAt,
       change,
-      worldMoved: movedToday(row.lastMaterialChangeAt, now),
+      worldMoved: movedToday(changedAt, now),
       changeKind: event ? changeKindLabel(event.kind) : null,
       moreCount: moreChangesForTopic({
         changeEventCount: changeEventsByTopic.get(row.id) ?? 0,
@@ -116,7 +118,10 @@ export default async function ExplorePage() {
     <div className="space-y-8">
       <header className="space-y-2">
         <h1 className="display">Explore</h1>
-        <p className="text-[0.9375rem] leading-6">What else should you care about?</p>
+        <p className="text-[0.9375rem] leading-6">
+          Explore Topics {brand.productName} is tracking. Open one to see what changed and the evidence behind it.
+        </p>
+        <p className="meta">{brand.coverageNote}</p>
       </header>
       <section>
         <h2 className="kicker">Moving now</h2>

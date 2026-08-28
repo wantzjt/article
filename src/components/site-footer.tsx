@@ -8,11 +8,23 @@ export function SiteFooter() {
           The World is shared. Your Frequency is personal. Ask any sentence for the source.
         </p>
         <div className="flex flex-wrap gap-4 font-mono text-[11px]/[14px] text-ink-quiet">
-          <Link href="/methodology" className="hover:text-ink">
-            Methodology
+          <Link href="/about" className="hover:text-ink">
+            About
+          </Link>
+          <Link href="/help" className="hover:text-ink">
+            Help
+          </Link>
+          <Link href="/privacy" className="hover:text-ink">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-ink">
+            Terms
           </Link>
           <Link href="/corrections" className="hover:text-ink">
             Corrections
+          </Link>
+          <Link href="/methodology" className="hover:text-ink">
+            Methodology
           </Link>
           <Link href="/feed.xml" className="hover:text-ink">
             RSS

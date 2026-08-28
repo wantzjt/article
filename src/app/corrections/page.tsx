@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { brand } from "@/lib/brand";
 import { formatCount, formatTime, warehouseCoverage } from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
 
@@ -36,7 +37,11 @@ export default async function CorrectionsPage() {
       <section className="space-y-3 border-t border-rule pt-6">
         <h2 className="kicker">How to send one</h2>
         <p>
-          Email the topic URL, the claim text, and a primary source URL. We will not invent a
+          Email{" "}
+          <a className="underline decoration-rule underline-offset-2" href={`mailto:${brand.correctionsEmail}`}>
+            {brand.correctionsEmail}
+          </a>{" "}
+          with the topic URL, the claim text, and a primary source URL. We will not invent a
           journalist byline to stand in front of the evidence.
         </p>
       </section>

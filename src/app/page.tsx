@@ -10,8 +10,10 @@ import { changeCopy } from "@/lib/frequency/changes";
 import { buildFrequency } from "@/lib/frequency/engine";
 import { explainWhy, frequencyRows } from "@/lib/frequency/explain";
 import { hasFollows } from "@/lib/frequency/rank";
+import { brand } from "@/lib/brand";
 import {
   changeLine,
+  changeTimestamp,
   moreChangesForTopic,
   movedToday,
   onPulse,
@@ -83,15 +85,16 @@ export default async function HomePage({
     });
     const briefClaims =
       graph.briefs.find((brief) => brief.topicId === topicId && brief.status === "published")?.renderData.claimIds.length ?? 0;
+    const changedAt = changeTimestamp(event?.createdAt, lastMaterial);
     return {
       slug: row.slug,
       name: row.name,
       kind: "kind" in row && typeof row.kind === "string" ? row.kind : topicKind(row),
       child: "facetChild" in row ? row.facetChild : null,
-      lastMaterialChangeAt: event?.createdAt ?? lastMaterial,
+      lastMaterialChangeAt: changedAt,
       change,
       breakthrough: "breakthrough" in row && row.breakthrough,
-      worldMoved: movedToday(lastMaterial, now),
+      worldMoved: movedToday(changedAt, now),
       changeKind: event ? changeKindLabel(event.kind) : ranked?.changeKind ? changeKindLabel(ranked.changeKind) : null,
       why: ranked ? explainWhy(ranked) : null,
       moreCount: moreChangesForTopic({
@@ -117,6 +120,7 @@ export default async function HomePage({
         <section className="space-y-4">
           <h1 className="display">Tune the news around you.</h1>
           <p className="text-[0.9375rem] leading-6">What changed. Why it matters. Where it came from.</p>
+          <p className="meta">{brand.coverageNote}</p>
           <p>
             <Link
               href="/start"

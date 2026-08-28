@@ -54,7 +54,7 @@ export async function SiteHeader() {
       </div>
       <nav className="mt-2 flex gap-4 text-[0.8125rem] leading-5 sm:hidden">
         <Link href={homeHref} className="text-ink-quiet hover:text-ink">
-          Frequency
+          {user ? "Your Frequency" : "The World"}
         </Link>
         <Link href="/explore" className="text-ink-quiet hover:text-ink">
           Explore

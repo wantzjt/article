@@ -7,5 +7,5 @@ export const STARTER_TOPICS = [
   { slug: "glm-5-3", name: "GLM-5.3" },
 ] as const;
 
-export const STARTER_MIN = 3;
-export const STARTER_MAX = 5;
+export const STARTER_MIN = 1;
+export const STARTER_MAX = 24;

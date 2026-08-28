@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleTopic, emptyGraph, topicIdFromSource } from "@/lib/store/graph";
+import { assembleTopic, emptyGraph, publicEvidenceSources, topicIdFromSource } from "@/lib/store/graph";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
@@ -8,6 +8,7 @@ import {
   personIdentity,
   pulseTopics,
   radarTopics,
+  topicUpdatedAt,
   warehouseCoverage,
 } from "@/lib/render/topic-view";
 import { glm53Fixture } from "@/lib/fixture/glm-5-3";
@@ -61,6 +62,77 @@ describe("warehouse sources on topic graph", () => {
     expect(topic.sources).toHaveLength(1);
     expect(topic.claims).toHaveLength(0);
     expect(topicIdFromSource(topic.sources[0])).toBe("topic_lenny-pruss");
+    expect(publicEvidenceSources(topic)).toHaveLength(1);
+  });
+
+  it("does not publish warehouse hits as Sources when claims have evidence", () => {
+    const graph = emptyGraph();
+    graph.topics.push({
+      id: "topic_glm53",
+      slug: "glm-5-3",
+      name: "GLM-5.3",
+      entityType: "model",
+      kind: "model",
+      description: "Z.ai model.",
+      aliases: [],
+      officialDomains: ["z.ai"],
+      status: "strong",
+      createdAt: "t",
+      updatedAt: "t",
+      lastVerifiedAt: "t",
+      lastMaterialChangeAt: "2026-08-27T12:00:00.000Z",
+    });
+    graph.sources.push(
+      source({
+        id: "official",
+        canonicalUrl: "https://z.ai/blog/glm-5-3",
+        publisherDomain: "z.ai",
+        title: "GLM-5.3 release",
+        metadata: { topicId: "topic_glm53" },
+      }),
+      source({
+        id: "arxiv-noise",
+        canonicalUrl: "https://arxiv.org/abs/9999.99999",
+        publisherDomain: "arxiv.org",
+        title: "ABD: Default Exception Abduction in Finite First Order Worlds",
+        metadata: { topicId: "topic_glm53" },
+      }),
+    );
+    graph.claims.push({
+      id: "c1",
+      topicId: "topic_glm53",
+      claimText: "GLM-5.3 shipped.",
+      normalizedClaim: "glm-5.3 shipped",
+      status: "supported",
+      firstSeenAt: "t",
+      lastVerifiedAt: "t",
+      supersededAt: null,
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    graph.claimSources.push({
+      claimId: "c1",
+      sourceId: "official",
+      supportType: "supports",
+      evidenceExcerpt: "GLM-5.3 released.",
+      createdAt: "t",
+    });
+    const topic = assembleTopic(graph, graph.topics[0]);
+    expect(topic.sources.length).toBe(2);
+    const published = publicEvidenceSources(topic);
+    expect(published.map((row) => row.id)).toEqual(["official"]);
+    expect(published.some((row) => row.publisherDomain === "arxiv.org")).toBe(false);
+  });
+
+  it("uses the Change clock for Topic Updated, not a later source retrieve", () => {
+    expect(
+      topicUpdatedAt({
+        changes: [{ createdAt: "2026-08-27T20:00:00.000Z" }],
+        lastMaterialChangeAt: "2026-08-23T12:00:00.000Z",
+        lastVerifiedAt: "2026-08-23T12:00:00.000Z",
+        lastSourceAt: "2026-08-23T12:00:00.000Z",
+      }),
+    ).toBe("2026-08-27T20:00:00.000Z");
   });
 
   it("does not add Play to a person stub", () => {
@@ -248,7 +320,21 @@ describe("pulse radar index", () => {
     expect(header).toMatch(/Explore/);
     expect(header).toMatch(/Search/);
     expect(header).toMatch(/Morning Frequency/);
+    expect(header).not.toMatch(/>\s*Frequency\s*</);
     expect(header).not.toMatch(/Methodology/);
+    const explore = readFileSync(path.join(process.cwd(), "src/app/explore/page.tsx"), "utf8");
+    expect(explore).toMatch(/Explore Topics/);
+    expect(explore).toMatch(/coverageNote/);
+    const start = readFileSync(path.join(process.cwd(), "src/app/start/page.tsx"), "utf8");
+    expect(start).toMatch(/Skip and browse|skip and browse/);
+    expect(readFileSync(path.join(process.cwd(), "src/components/start-picker.tsx"), "utf8")).toMatch(/Skip and browse/);
+    expect(readFileSync(path.join(process.cwd(), "src/app/search/page.tsx"), "utf8")).toMatch(/doesn&apos;t have this Topic yet/);
+    expect(readFileSync(path.join(process.cwd(), "src/app/about/page.tsx"), "utf8")).toMatch(/coverageNote/);
+    expect(readFileSync(path.join(process.cwd(), "src/app/privacy/page.tsx"), "utf8")).toMatch(/afm_session/);
+    expect(readFileSync(path.join(process.cwd(), "src/app/terms/page.tsx"), "utf8")).toMatch(/correctionsEmail/);
+    expect(readFileSync(path.join(process.cwd(), "src/app/help/page.tsx"), "utf8")).toMatch(/Click a claim|click a claim/i);
+    expect(readFileSync(path.join(process.cwd(), "src/app/corrections/page.tsx"), "utf8")).toMatch(/correctionsEmail/);
+    expect(dossier).toMatch(/TopicHint/);
     expect(controls).toMatch(/Less/);
     expect(controls).toMatch(/More/);
     expect(dossier).toMatch(/What changed/);

@@ -10,6 +10,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${brand.siteUrl}/explore`, changeFrequency: "hourly" },
     { url: `${brand.siteUrl}/search`, changeFrequency: "weekly" },
     { url: `${brand.siteUrl}/start`, changeFrequency: "weekly" },
+    { url: `${brand.siteUrl}/about`, changeFrequency: "monthly" },
+    { url: `${brand.siteUrl}/help`, changeFrequency: "monthly" },
+    { url: `${brand.siteUrl}/privacy`, changeFrequency: "monthly" },
+    { url: `${brand.siteUrl}/terms`, changeFrequency: "monthly" },
     { url: `${brand.siteUrl}/methodology`, changeFrequency: "monthly" },
     { url: `${brand.siteUrl}/corrections`, changeFrequency: "monthly" },
     ...indexable.map((topic) => ({

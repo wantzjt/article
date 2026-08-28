@@ -260,6 +260,27 @@ export function latestEvidence(sources: SourceRecord[], limit = LATEST_EVIDENCE_
   return warehouseSourceList(sources, limit);
 }
 
+/** Change clock for feed rows and Topic "Updated". Prefer the typed Change. */
+export function changeTimestamp(
+  eventCreatedAt: string | null | undefined,
+  topicLastMaterial: string | null | undefined,
+): string | null {
+  return eventCreatedAt || topicLastMaterial || null;
+}
+
+export function topicUpdatedAt(input: {
+  changes: Array<{ createdAt: string }>;
+  lastMaterialChangeAt: string | null;
+  lastVerifiedAt: string | null;
+  lastSourceAt: string | null;
+}): string | null {
+  let latest = "";
+  for (const event of input.changes) {
+    if (event.createdAt > latest) latest = event.createdAt;
+  }
+  return latest || input.lastMaterialChangeAt || input.lastVerifiedAt || input.lastSourceAt;
+}
+
 export function movedToday(iso: string | null, now = new Date()): boolean {
   if (!iso) return false;
   return iso.slice(0, 10) === now.toISOString().slice(0, 10);
