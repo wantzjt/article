@@ -43,8 +43,8 @@ describe("changeLine", () => {
     expect(primaryChangeCopy(dump)).not.toContain("Expanded cloud");
     expect(
       moreChangesForTopic({
-        changeEventCount: 1,
-        briefClaimCount: 5,
+        changeEventCount: 5,
+        briefClaimCount: 12,
         summary: dump,
       }),
     ).toBe(4);

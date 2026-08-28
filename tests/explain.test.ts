@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { explainWhy, topicEmphasis } from "@/lib/frequency/explain";
+import { explainTune, explainWhy, topicEmphasis } from "@/lib/frequency/explain";
+import type { FrequencyProfile } from "@/lib/frequency/rank";
 import type { RankedChange } from "@/lib/frequency/rank";
 
 function row(partial: Partial<RankedChange>): RankedChange {
@@ -42,6 +43,19 @@ describe("why this", () => {
     expect(text).toMatch(/highly material/);
     expect(text).not.toMatch(/0\.\d/);
     expect(text).not.toMatch(/×/);
+  });
+
+  it("connects a Frequency choice to a followed Topic in one line", () => {
+    const profile: FrequencyProfile = {
+      userId: "u1",
+      email: "a@b.com",
+      follows: [{ topicId: "topic_nvidia", weight: 1, muted: false }],
+      facets: {},
+      interests: { ai: 2 },
+    };
+    expect(explainTune(row({ slug: "openai", name: "OpenAI", followed: true }), profile)).toBe(
+      "You chose AI and follow OpenAI.",
+    );
   });
 
   it("marks a topic HIGH when any facet is More", () => {

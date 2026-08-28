@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { FrequencyList } from "@/components/frequency-list";
 import { WhyThis } from "@/components/why-this";
 import { LinkedText, type LinkedTopic } from "@/lib/render/topic-links";
-import { formatRelative, isFreshChange, primaryChangeCopy } from "@/lib/render/topic-view";
+import { formatRelative, frontDeskLabel, isFreshChange, primaryChangeCopy } from "@/lib/render/topic-view";
 
 export type WorldFeedRow = {
   slug: string;
@@ -12,10 +12,12 @@ export type WorldFeedRow = {
   child?: string | null;
   lastMaterialChangeAt: string | null;
   change: string;
+  support?: string | null;
   breakthrough?: boolean;
   worldMoved?: boolean;
   changeKind?: string | null;
   why?: string | null;
+  tuned?: boolean;
   moreCount?: number;
 };
 
@@ -56,25 +58,21 @@ export function WorldFeed({
               world ? "border-l-2 border-l-signal" : "border-l-2 border-l-rule"
             } ${fresh ? "world-fresh" : ""}`}
           >
-            <div className="flex items-baseline justify-between gap-3">
-              <Link
-                href={`/topic/${row.slug}#what-changed`}
-                className="font-heading text-[1.125rem] leading-6 tracking-tight text-ink hover:underline"
-              >
-                {row.name}
-              </Link>
-              <span className="meta shrink-0">
-                {fresh ? "New" : formatRelative(row.lastMaterialChangeAt, now)}
-              </span>
-            </div>
-            <p className="meta mt-1">
-              {row.changeKind ? `${row.changeKind} · ` : ""}
-              {row.child || row.kind}
-              {world ? " · World changed" : ""}
-              {personalized && row.breakthrough ? " · highly material" : ""}
-            </p>
+            <Link
+              href={`/topic/${row.slug}#what-changed`}
+              className="font-heading text-[1.125rem] leading-6 tracking-tight text-ink hover:underline"
+            >
+              {row.name}
+            </Link>
             <p className="mt-1 text-[0.9375rem] leading-6 text-ink">
               <LinkedText text={primaryChangeCopy(row.change)} topics={catalog} skipSlug={row.slug} />
+            </p>
+            {row.support ? <p className="mt-1 text-[0.8125rem] leading-5 text-ink-quiet">{row.support}</p> : null}
+            <p className="meta mt-1">
+              {fresh ? "New" : formatRelative(row.lastMaterialChangeAt, now)}
+              {" · "}
+              {frontDeskLabel(row.kind, row.child)}
+              {world ? " · World changed" : ""}
             </p>
             {(row.moreCount ?? 0) > 0 ? (
               <p className="meta mt-1">
@@ -83,7 +81,9 @@ export function WorldFeed({
                 </Link>
               </p>
             ) : null}
-            {personalized && row.why ? <WhyThis explanation={row.why} /> : null}
+            {personalized && row.why ? (
+              <WhyThis explanation={row.why} label={row.tuned ? "Tuned for you" : "Why this?"} />
+            ) : null}
           </li>
         );
       })}

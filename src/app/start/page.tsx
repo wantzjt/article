@@ -27,7 +27,9 @@ export default async function StartPage({
       <header className="space-y-2">
         <p className="kicker">Your Frequency</p>
         <h1 className="display">What do you want closer?</h1>
-        <p className="text-[0.9375rem] leading-6">Tap anything that matters to you. You can tune it later.</p>
+        <p className="text-[0.9375rem] leading-6">
+          Pick anything you care about. Your news will tune itself around you.
+        </p>
       </header>
       <InterestStudio signedIn={Boolean(user)} initial={initial} nodes={nodes} />
     </div>

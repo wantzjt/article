@@ -326,10 +326,10 @@ describe("pulse radar index", () => {
     expect(explore).toMatch(/Explore Topics/);
     expect(explore).toMatch(/coverageNote/);
     const start = readFileSync(path.join(process.cwd(), "src/app/start/page.tsx"), "utf8");
-    expect(start).toMatch(/Tap anything that matters/);
+    expect(start).toMatch(/Pick anything you care about/);
     expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/Skip and browse/);
     expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/Discover/);
-    expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/does not follow every Topic/);
+    expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/Areas tune your Frequency/);
     expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/Less/);
     expect(home).toMatch(/Top stories/);
     expect(readFileSync(path.join(process.cwd(), "src/app/search/page.tsx"), "utf8")).toMatch(/doesn&apos;t have this Topic yet/);

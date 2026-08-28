@@ -170,7 +170,7 @@ export function InterestStudio({
         </Link>
       </div>
       {error ? <p className="text-[0.9375rem] leading-6 text-status-disputed">{error}</p> : null}
-      <p className="meta">Selecting an area cares about it. It does not follow every Topic underneath.</p>
+      <p className="meta">Areas tune your Frequency. Topics can be followed individually.</p>
     </div>
   );
 }
@@ -290,8 +290,9 @@ function ListRow({
           on ? "text-ink" : "text-ink-quiet hover:text-ink"
         }`}
       >
-        <span className="font-serif text-[1.0625rem] leading-6">{node.name}</span>
-        <span className="meta">{on ? "Following" : "Add"}</span>
+        <span className="font-serif text-[1.0625rem] leading-6">
+          {node.name} — {on ? "Following" : "Follow"}
+        </span>
       </button>
     );
   }
@@ -299,6 +300,7 @@ function ListRow({
     <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 border-t border-rule">
       <span className={`font-serif text-[1.0625rem] leading-6 ${weight === undefined ? "text-ink-quiet" : "text-ink"}`}>
         {node.name}
+        {weight === 2 ? " — More" : weight === 0 ? " — Normal" : weight === -2 ? " — Less" : ""}
       </span>
       <div className="flex gap-3">
         {CARE.map((step) => (

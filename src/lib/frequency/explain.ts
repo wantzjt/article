@@ -1,4 +1,5 @@
 import { FACETS, type Facet } from "./facets";
+import { interestById, INTEREST_TREE } from "./interest-tree";
 import type { FrequencyProfile, RankedChange } from "./rank";
 
 export const FACET_LABEL: Record<Facet, string> = {
@@ -24,6 +25,20 @@ export function topicEmphasis(
   if (values.some((value) => value > 0)) return "HIGH";
   if (values.some((value) => value < 0)) return "LOW";
   return "NORMAL";
+}
+
+export function explainTune(row: RankedChange, profile: FrequencyProfile): string {
+  const interests = profile.interests ?? {};
+  const topicNode = INTEREST_TREE.find((node) => node.slug === row.slug);
+  const cluster = topicNode?.parent ? interestById(topicNode.parent) : undefined;
+  const area = cluster?.parent ? interestById(cluster.parent) : interestById(topicNode?.parent ?? "");
+  const chosen =
+    (cluster && interests[cluster.id] !== undefined ? cluster.name : null) ??
+    (area && interests[area.id] !== undefined ? area.name : null);
+  if (row.followed && chosen) return `You chose ${chosen} and follow ${row.name}.`;
+  if (row.followed) return `You follow ${row.name}.`;
+  if (chosen) return `You chose ${chosen}.`;
+  return explainWhy(row);
 }
 
 export function explainWhy(row: RankedChange): string {

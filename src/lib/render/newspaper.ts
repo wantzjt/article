@@ -6,7 +6,14 @@ import { changeCopy } from "@/lib/frequency/changes";
 import type { RankedChange } from "@/lib/frequency/rank";
 import type { GraphSnapshot } from "@/lib/store/graph";
 import type { WorldFeedRow } from "@/components/world-feed";
-import { changeLine, changeTimestamp, moreChangesForTopic, movedToday } from "./topic-view";
+import {
+  changeLine,
+  changeTimestamp,
+  isRecentActivity,
+  moreChangesForTopic,
+  movedToday,
+  supportingLine,
+} from "./topic-view";
 
 const SECTION_CAP = 3;
 const NEWSPAPER_AREAS = ["technology", "business", "policy", "people"] as const;
@@ -52,9 +59,10 @@ export function toWorldFeedRows(
     const event = events.get(row.topicId);
     const changedAt = changeTimestamp(event?.createdAt, row.lastMaterialChangeAt);
     const ranked = "reasons" in row && Array.isArray(row.reasons);
+    const raw = event?.summary || latestByTopic.get(row.topicId)?.changeSummary || row.changeSummary || "";
     const change = changeLine({
       briefHeadline: ranked ? changeCopy({ headline: row.headline ?? "", changeSummary: row.changeSummary ?? "" }) : latestBriefByTopic.get(row.topicId)?.headline,
-      changeSummary: event?.summary || latestByTopic.get(row.topicId)?.changeSummary,
+      changeSummary: raw,
     });
     const briefClaims =
       graph.briefs.find((brief) => brief.topicId === row.topicId && brief.status === "published")?.renderData.claimIds.length ?? 0;
@@ -65,6 +73,7 @@ export function toWorldFeedRows(
       child: row.facetChild ?? null,
       lastMaterialChangeAt: changedAt,
       change,
+      support: supportingLine(raw, change),
       breakthrough: row.breakthrough,
       worldMoved: movedToday(changedAt, now),
       changeKind: event ? changeKindLabel(event.kind) : row.changeKind ? changeKindLabel(row.changeKind) : null,
@@ -128,6 +137,7 @@ export function newspaperSections(input: {
   const sections: Array<{ id: string; title: string; rows: WorldFeedRow[] }> = [];
   for (const area of order) {
     const items = pool.filter((row) => {
+      if (!isRecentActivity(row.lastMaterialChangeAt, now)) return false;
       return newspaperAreaForTopic({ slug: row.slug, kind: row.kind, child: row.facetChild }) === area;
     });
     if (items.length === 0) continue;

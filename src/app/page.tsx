@@ -8,17 +8,19 @@ import { topicKind } from "@/lib/compiler/taxonomy";
 import { loadClassifications } from "@/lib/frequency/classify";
 import { changeCopy } from "@/lib/frequency/changes";
 import { buildFrequency } from "@/lib/frequency/engine";
-import { explainWhy, frequencyRows } from "@/lib/frequency/explain";
+import { explainTune, frequencyRows } from "@/lib/frequency/explain";
 import { hasFollows } from "@/lib/frequency/rank";
 import { brand } from "@/lib/brand";
 import { newspaperSections } from "@/lib/render/newspaper";
 import {
   changeLine,
   changeTimestamp,
+  HOME_LEAD,
   moreChangesForTopic,
   movedToday,
   onPulse,
   pulseTopics,
+  supportingLine,
 } from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
 
@@ -80,9 +82,10 @@ export default async function HomePage({
     const topicId = "topicId" in row ? row.topicId : "id" in row ? row.id : "";
     const event = events.get(topicId);
     const ranked = "reasons" in row ? row : null;
+    const raw = event?.summary || latestByTopic.get(topicId)?.changeSummary || "";
     const change = changeLine({
       briefHeadline: "facet" in row ? changeCopy(row) : latestBriefByTopic.get(topicId)?.headline,
-      changeSummary: event?.summary || latestByTopic.get(topicId)?.changeSummary,
+      changeSummary: raw,
     });
     const briefClaims =
       graph.briefs.find((brief) => brief.topicId === topicId && brief.status === "published")?.renderData.claimIds.length ?? 0;
@@ -94,10 +97,11 @@ export default async function HomePage({
       child: "facetChild" in row ? row.facetChild : null,
       lastMaterialChangeAt: changedAt,
       change,
+      support: supportingLine(raw, change),
       breakthrough: "breakthrough" in row && row.breakthrough,
       worldMoved: movedToday(changedAt, now),
       changeKind: event ? changeKindLabel(event.kind) : ranked?.changeKind ? changeKindLabel(ranked.changeKind) : null,
-      why: ranked ? explainWhy(ranked) : null,
+      why: ranked && current ? explainTune(ranked, current.profile) : null,
       moreCount: moreChangesForTopic({
         changeEventCount: changeEventsByTopic.get(topicId) ?? 0,
         briefClaimCount: briefClaims,
@@ -144,8 +148,7 @@ export default async function HomePage({
       <section>
         <h2 className="kicker">{frequencyOn ? "Top stories" : "The World"}</h2>
         <WorldFeed
-          rows={rows}
-          rest={pulse.rest.map((row) => ({ slug: row.slug, name: row.name }))}
+          rows={rows.slice(0, HOME_LEAD).map((row, index) => ({ ...row, tuned: Boolean(frequencyOn && index === 0 && row.why) }))}
           orderKey={payload?.orderKey ?? "world"}
           personalized={frequencyOn}
           now={now}

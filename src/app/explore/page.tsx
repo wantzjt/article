@@ -8,7 +8,7 @@ import { compileBlocked } from "@/lib/compiler/compile-priority";
 import { isPublicTopicStatus } from "@/lib/compiler/promotion";
 import { topicKind } from "@/lib/compiler/taxonomy";
 import { brand } from "@/lib/brand";
-import { changeLine, changeTimestamp, moreChangesForTopic, movedToday, onPulse, pulseTopics } from "@/lib/render/topic-view";
+import { changeLine, changeTimestamp, HOME_LEAD, moreChangesForTopic, movedToday, onPulse, pulseTopics, supportingLine } from "@/lib/render/topic-view";
 import { getGraph } from "@/lib/store/json-store";
 import type { TopicRecord } from "@/lib/compiler/types";
 
@@ -68,9 +68,10 @@ export default async function ExplorePage() {
   }
   const rows: WorldFeedRow[] = pulse.visible.map((row) => {
     const event = events.get(row.id);
+    const raw = event?.summary || latestByTopic.get(row.id)?.changeSummary || "";
     const change = changeLine({
       briefHeadline: latestBriefByTopic.get(row.id)?.headline,
-      changeSummary: event?.summary || latestByTopic.get(row.id)?.changeSummary,
+      changeSummary: raw,
     });
     const briefClaims = graph.briefs.find((brief) => brief.topicId === row.id && brief.status === "published")?.renderData.claimIds.length ?? 0;
     const changedAt = changeTimestamp(event?.createdAt, row.lastMaterialChangeAt);
@@ -80,6 +81,7 @@ export default async function ExplorePage() {
       kind: topicKind(row),
       lastMaterialChangeAt: changedAt,
       change,
+      support: supportingLine(raw, change),
       worldMoved: movedToday(changedAt, now),
       changeKind: event ? changeKindLabel(event.kind) : null,
       moreCount: moreChangesForTopic({
@@ -125,7 +127,7 @@ export default async function ExplorePage() {
       </header>
       <section>
         <h2 className="kicker">Moving now</h2>
-        <WorldFeed rows={rows} rest={pulse.rest.slice(0, 8).map((row) => ({ slug: row.slug, name: row.name }))} orderKey="world" personalized={false} now={now} topics={catalog} />
+        <WorldFeed rows={rows.slice(0, HOME_LEAD)} orderKey="world" personalized={false} now={now} topics={catalog} />
       </section>
       {related.length > 0 ? (
         <section>

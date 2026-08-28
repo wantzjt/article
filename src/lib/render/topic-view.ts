@@ -59,10 +59,38 @@ export function shortExcerpt(text: string, max = 160): string {
 }
 
 /** One sharp Change line. Never a concatenated claim dump. */
-export function primaryChangeCopy(text: string | null | undefined, max = 140): string {
+export function primaryChangeCopy(text: string | null | undefined, max = 110): string {
   const compact = (text ?? "").replace(/\s+/g, " ").trim();
   if (!compact) return "Material change recorded.";
   return oneLine(splitSentences(compact)[0] ?? compact, max);
+}
+
+/** Optional second sentence. Never a claim dump. */
+export function supportingLine(text: string | null | undefined, headline: string, max = 88): string | null {
+  const sentences = splitSentences((text ?? "").replace(/\s+/g, " ").trim());
+  if (sentences.length < 2) return null;
+  const second = oneLine(sentences[1], max);
+  if (!second || second === headline) return null;
+  return second;
+}
+
+export function frontDeskLabel(kind?: string | null, child?: string | null): string {
+  if (child) {
+    return child.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+  switch (kind) {
+    case "policy":
+    case "standard":
+      return "Policy";
+    case "person":
+      return "People";
+    case "company":
+      return "Business";
+    case "event":
+      return "Business";
+    default:
+      return "Technology";
+  }
 }
 
 export function extraChangeCount(total: number): number {
@@ -75,8 +103,7 @@ export function moreChangesForTopic(input: {
   briefClaimCount: number;
   summary: string;
 }): number {
-  const tagged = Math.max(input.changeEventCount, input.briefClaimCount);
-  if (tagged > 1) return tagged - 1;
+  if (input.changeEventCount > 1) return input.changeEventCount - 1;
   const sentences = splitSentences((input.summary ?? "").replace(/\s+/g, " ").trim());
   return Math.max(0, sentences.length - 1);
 }
@@ -233,6 +260,9 @@ export function personIdentity(meta: TopicEntityMeta | null | undefined): Person
 }
 
 export const PULSE_LIMIT = 8;
+/** Front page lead strip. Appetite, not a portal. */
+export const HOME_LEAD = 6;
+export const DESK_ACTIVITY_DAYS = 7;
 export const RADAR_LIMIT = 12;
 export const LATEST_EVIDENCE_LIMIT = 5;
 export const WAREHOUSE_SOURCE_PAGE_LIMIT = 40;
@@ -284,6 +314,13 @@ export function topicUpdatedAt(input: {
 export function movedToday(iso: string | null, now = new Date()): boolean {
   if (!iso) return false;
   return iso.slice(0, 10) === now.toISOString().slice(0, 10);
+}
+
+export function isRecentActivity(iso: string | null, now = new Date(), days = DESK_ACTIVITY_DAYS): boolean {
+  if (!iso) return false;
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return false;
+  return now.getTime() - then < days * 86400000;
 }
 
 /** Fresh enough to mark as New — two hours. */
