@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { interestById, type LiveInterestNode } from "@/lib/frequency/interest-tree";
+import { encodeInterestQuery, interestById, type LiveInterestNode } from "@/lib/frequency/interest-tree";
+
+const CARE: Array<{ label: "Less" | "Normal" | "More"; weight: number }> = [
+  { label: "Less", weight: -2 },
+  { label: "Normal", weight: 0 },
+  { label: "More", weight: 2 },
+];
 
 export function InterestStudio({
   signedIn,
@@ -11,13 +17,13 @@ export function InterestStudio({
   nodes,
 }: {
   signedIn: boolean;
-  initial: string[];
+  initial: Record<string, number>;
   nodes: LiveInterestNode[];
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"discover" | "list">("discover");
   const [view, setView] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(initial));
+  const [weights, setWeights] = useState<Record<string, number>>(() => ({ ...initial }));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
@@ -30,11 +36,11 @@ export function InterestStudio({
     return row.parent === view;
   });
 
-  function toggle(id: string) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  function setWeight(id: string, weight: number | null) {
+    setWeights((current) => {
+      const next = { ...current };
+      if (weight === null) delete next[id];
+      else next[id] = weight;
       return next;
     });
   }
@@ -42,22 +48,27 @@ export function InterestStudio({
   function open(id: string) {
     const node = byId.get(id);
     if (!node) return;
-    if (!selected.has(id)) toggle(id);
     const kids = nodes.filter((row) => row.parent === id && (row.present || row.kind === "area"));
-    if (kids.length > 0) setView(id);
+    if (kids.length > 0) {
+      if (weights[id] === undefined) setWeight(id, 2);
+      setView(id);
+      return;
+    }
+    setWeight(id, weights[id] === undefined ? 2 : null);
   }
 
-  async function commit(ids: string[]) {
+  async function commit(nextWeights: Record<string, number>) {
     setPending(true);
     setError(null);
+    const encoded = encodeInterestQuery(nextWeights);
     try {
       const response = await fetch("/api/frequency/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nodes: ids }),
+        body: JSON.stringify({ weights: nextWeights }),
       });
       if (response.status === 401) {
-        router.push(`/signin?next=${encodeURIComponent(`/start?nodes=${ids.join(",")}`)}`);
+        router.push(`/signin?next=${encodeURIComponent(`/start?nodes=${encoded}`)}`);
         return;
       }
       if (!response.ok) {
@@ -73,24 +84,23 @@ export function InterestStudio({
 
   useEffect(() => {
     if (applied.current) return;
-    if (signedIn && initial.length > 0) {
+    if (signedIn && Object.keys(initial).length > 0) {
       applied.current = true;
       void commit(initial);
     }
   }, [signedIn, initial]);
 
   function onContinue() {
-    const ids = [...selected];
-    if (ids.length === 0) {
+    if (Object.keys(weights).length === 0) {
       setError("Tap anything that matters, or skip and browse first.");
       return;
     }
     if (!signedIn) {
-      router.push(`/signin?next=${encodeURIComponent(`/start?nodes=${ids.join(",")}`)}`);
+      router.push(`/signin?next=${encodeURIComponent(`/start?nodes=${encodeInterestQuery(weights)}`)}`);
       return;
     }
     setSettling(true);
-    window.setTimeout(() => void commit(ids), 420);
+    window.setTimeout(() => void commit(weights), 480);
   }
 
   const crumbs: LiveInterestNode[] = [];
@@ -102,7 +112,7 @@ export function InterestStudio({
     cursor = node.parent;
   }
 
-  const selectedNames = [...selected]
+  const selectedNames = Object.keys(weights)
     .map((id) => byId.get(id)?.name ?? interestById(id)?.name)
     .filter(Boolean);
 
@@ -136,10 +146,10 @@ export function InterestStudio({
               </button>
             </p>
           ) : null}
-          <InterestField nodes={visible} selected={selected} onOpen={open} />
+          <InterestField nodes={visible} weights={weights} settling={settling} onOpen={open} />
         </div>
       ) : (
-        <InterestList nodes={nodes} selected={selected} onToggle={toggle} />
+        <InterestList nodes={nodes} weights={weights} onSet={setWeight} />
       )}
 
       {selectedNames.length > 0 ? (
@@ -167,20 +177,27 @@ export function InterestStudio({
 
 function InterestField({
   nodes,
-  selected,
+  weights,
+  settling,
   onOpen,
 }: {
   nodes: LiveInterestNode[];
-  selected: Set<string>;
+  weights: Record<string, number>;
+  settling: boolean;
   onOpen: (id: string) => void;
 }) {
   const slots = layout(nodes.length);
+  const selected = nodes.filter((row) => weights[row.id] !== undefined);
   return (
     <div className="interest-field relative h-[22rem] overflow-hidden">
       {nodes.map((node, index) => {
         const slot = slots[index] ?? { x: 50, y: 50 };
-        const on = selected.has(node.id);
+        const on = weights[node.id] !== undefined;
         const size = 4.1 + node.activity * 3.4;
+        const settleSlot =
+          settling && on && selected.length > 0
+            ? { x: 18 + (selected.indexOf(node) / Math.max(selected.length, 1)) * 64, y: 18 }
+            : slot;
         return (
           <button
             key={node.id}
@@ -189,16 +206,17 @@ function InterestField({
             onClick={() => onOpen(node.id)}
             className={`interest-bubble absolute flex items-center justify-center rounded-full border text-center font-heading leading-5 tracking-tight ${
               on ? "interest-bubble-on" : ""
-            } ${node.moving ? "interest-bubble-live" : ""}`}
+            } ${node.moving ? "interest-bubble-live" : ""} ${node.childMoving ? "interest-bubble-kids" : ""}`}
             style={{
               width: `${size}rem`,
               height: `${size}rem`,
-              left: `${slot.x}%`,
-              top: `${slot.y}%`,
+              left: `${settleSlot.x}%`,
+              top: `${settleSlot.y}%`,
               marginLeft: `${-size / 2}rem`,
               marginTop: `${-size / 2}rem`,
               fontSize: size > 6.5 ? "1.05rem" : "0.92rem",
               animationDelay: `${-index * 1.6}s`,
+              transition: settling ? "left 480ms ease, top 480ms ease" : undefined,
             }}
           >
             {node.name}
@@ -211,32 +229,32 @@ function InterestField({
 
 function InterestList({
   nodes,
-  selected,
-  onToggle,
+  weights,
+  onSet,
 }: {
   nodes: LiveInterestNode[];
-  selected: Set<string>;
-  onToggle: (id: string) => void;
+  weights: Record<string, number>;
+  onSet: (id: string, weight: number | null) => void;
 }) {
   const areas = nodes.filter((row) => row.parent == null);
   return (
     <ul className="space-y-4">
       {areas.map((area) => {
-        const clusters = nodes.filter((row) => row.parent === area.id && (row.present || row.kind === "area"));
+        const clusters = nodes.filter((row) => row.parent === area.id);
         return (
           <li key={area.id}>
-            <ListToggle node={area} on={selected.has(area.id)} onToggle={onToggle} />
+            <ListRow node={area} weight={weights[area.id]} onSet={onSet} />
             <ul className="mt-1">
               {clusters.map((cluster) => {
                 const topics = nodes.filter((row) => row.parent === cluster.id && row.present);
                 return (
                   <li key={cluster.id} className="pl-4">
-                    <ListToggle node={cluster} on={selected.has(cluster.id)} onToggle={onToggle} />
+                    <ListRow node={cluster} weight={weights[cluster.id]} onSet={onSet} />
                     {topics.length > 0 ? (
                       <ul>
                         {topics.map((topic) => (
                           <li key={topic.id} className="pl-4">
-                            <ListToggle node={topic} on={selected.has(topic.id)} onToggle={onToggle} />
+                            <ListRow node={topic} weight={weights[topic.id]} onSet={onSet} />
                           </li>
                         ))}
                       </ul>
@@ -252,27 +270,52 @@ function InterestList({
   );
 }
 
-function ListToggle({
+function ListRow({
   node,
-  on,
-  onToggle,
+  weight,
+  onSet,
 }: {
   node: LiveInterestNode;
-  on: boolean;
-  onToggle: (id: string) => void;
+  weight: number | undefined;
+  onSet: (id: string, weight: number | null) => void;
 }) {
+  if (node.kind === "topic") {
+    const on = weight !== undefined;
+    return (
+      <button
+        type="button"
+        aria-pressed={on}
+        onClick={() => onSet(node.id, on ? null : 2)}
+        className={`flex min-h-11 w-full items-center justify-between border-t border-rule text-left ${
+          on ? "text-ink" : "text-ink-quiet hover:text-ink"
+        }`}
+      >
+        <span className="font-serif text-[1.0625rem] leading-6">{node.name}</span>
+        <span className="meta">{on ? "Following" : "Add"}</span>
+      </button>
+    );
+  }
   return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={() => onToggle(node.id)}
-      className={`flex min-h-11 w-full items-center justify-between border-t border-rule text-left ${
-        on ? "text-ink" : "text-ink-quiet hover:text-ink"
-      }`}
-    >
-      <span className="font-serif text-[1.0625rem] leading-6">{node.name}</span>
-      <span className="meta">{on ? "More" : "Add"}</span>
-    </button>
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 border-t border-rule">
+      <span className={`font-serif text-[1.0625rem] leading-6 ${weight === undefined ? "text-ink-quiet" : "text-ink"}`}>
+        {node.name}
+      </span>
+      <div className="flex gap-3">
+        {CARE.map((step) => (
+          <button
+            key={step.label}
+            type="button"
+            aria-pressed={weight === step.weight}
+            className={`inline-flex min-h-11 items-center font-mono text-[12px]/[16px] ${
+              weight === step.weight ? "border-b border-ink text-ink" : "text-ink-quiet hover:text-ink"
+            }`}
+            onClick={() => onSet(node.id, weight === step.weight ? null : step.weight)}
+          >
+            {step.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

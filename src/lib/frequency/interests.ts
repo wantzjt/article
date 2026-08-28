@@ -13,9 +13,11 @@ export {
   INTEREST_AREAS,
   INTEREST_TREE,
   areaTitle,
+  encodeInterestQuery,
   interestById,
   interestChildren,
   interestIdsFromQuery,
+  parseInterestQuery,
   slugsForSelection,
   type InterestDef,
   type InterestKind,
@@ -37,22 +39,39 @@ export function areaIdForChange(change: Pick<FrequencyChange, "slug" | "kind" | 
   return "technology";
 }
 
+/** Most specific selected node: Topic, then cluster, then area. `undefined` = untouched. */
+export function interestForChange(
+  profile: Pick<FrequencyProfile, "interests">,
+  change: Pick<FrequencyChange, "slug" | "kind" | "facet" | "facetChild">,
+): number | undefined {
+  const interests = profile.interests ?? {};
+  let topicW: number | undefined;
+  let clusterW: number | undefined;
+  let areaW: number | undefined;
+  const area = areaIdForChange(change);
+  if (typeof interests[area] === "number") areaW = interests[area];
+  for (const node of INTEREST_TREE) {
+    const hit = node.slug === change.slug || node.slugs.includes(change.slug);
+    if (!hit) continue;
+    if (typeof interests[node.id] === "number") {
+      if (node.kind === "topic") topicW = interests[node.id];
+      else clusterW = interests[node.id];
+    }
+    if (node.parent && typeof interests[node.parent] === "number") {
+      const parent = interestById(node.parent);
+      if (parent?.kind === "cluster") clusterW = clusterW ?? interests[node.parent];
+      if (parent?.kind === "area") areaW = areaW ?? interests[node.parent];
+    }
+  }
+  const found = topicW ?? clusterW ?? areaW;
+  return found === undefined ? undefined : clampFacetWeight(found);
+}
+
 export function interestWeightForChange(
   profile: Pick<FrequencyProfile, "interests">,
   change: Pick<FrequencyChange, "slug" | "kind" | "facet" | "facetChild">,
 ): number {
-  const interests = profile.interests ?? {};
-  let weight = 0;
-  const area = areaIdForChange(change);
-  if (typeof interests[area] === "number") weight = interests[area];
-  for (const node of INTEREST_TREE) {
-    if (!node.slugs.includes(change.slug) && node.slug !== change.slug) continue;
-    if (typeof interests[node.id] === "number") weight = Math.max(weight, interests[node.id]);
-    if (node.parent && typeof interests[node.parent] === "number") {
-      weight = weight === 0 ? interests[node.parent] : Math.max(weight, interests[node.parent]);
-    }
-  }
-  return clampFacetWeight(weight);
+  return interestForChange(profile, change) ?? 0;
 }
 
 function hoursAgo(iso: string | null, now: Date): number {
@@ -108,9 +127,13 @@ export function liveInterestNodes(graph: GraphSnapshot, now = new Date()): LiveI
       present,
       activity,
       moving,
+      childMoving: false,
       childIds: INTEREST_TREE.filter((row) => row.parent === def.id).map((row) => row.id),
     };
-  });
+  }).map((node, _index, all) => ({
+    ...node,
+    childMoving: all.some((row) => row.parent === node.id && (row.moving || row.childMoving)),
+  }));
 }
 
 export function newspaperAreaForTopic(input: {

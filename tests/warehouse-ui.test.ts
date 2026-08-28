@@ -330,6 +330,8 @@ describe("pulse radar index", () => {
     expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/Skip and browse/);
     expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/Discover/);
     expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/does not follow every Topic/);
+    expect(readFileSync(path.join(process.cwd(), "src/components/interest-studio.tsx"), "utf8")).toMatch(/Less/);
+    expect(home).toMatch(/Top stories/);
     expect(readFileSync(path.join(process.cwd(), "src/app/search/page.tsx"), "utf8")).toMatch(/doesn&apos;t have this Topic yet/);
     expect(readFileSync(path.join(process.cwd(), "src/app/about/page.tsx"), "utf8")).toMatch(/coverageNote/);
     expect(readFileSync(path.join(process.cwd(), "src/app/privacy/page.tsx"), "utf8")).toMatch(/afm_session/);

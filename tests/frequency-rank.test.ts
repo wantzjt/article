@@ -158,6 +158,25 @@ describe("rankFrequency", () => {
     expect(ranked.map((row) => row.slug)).toEqual(["glm-5-3"]);
     expect(ranked[0].reasons.some((row) => row === "interest")).toBe(true);
   });
+
+  it("keeps a Less cluster in the projection, quieter than More", () => {
+    const more: FrequencyProfile = {
+      userId: "u1",
+      email: "a@b.com",
+      follows: [],
+      facets: {},
+      interests: { technology: 2 },
+    };
+    const less: FrequencyProfile = {
+      ...more,
+      interests: { technology: -2 },
+    };
+    const up = rankFrequency([glm], more, now)[0];
+    const down = rankFrequency([glm], less, now)[0];
+    expect(up).toBeTruthy();
+    expect(down).toBeTruthy();
+    expect(up.score).toBeGreaterThan(down.score);
+  });
 });
 
 describe("morning email", () => {

@@ -350,7 +350,7 @@ export async function replaceInterests(input: {
 }): Promise<FrequencyProfile | null> {
   const next = Object.entries(input.weights)
     .map(([nodeId, weight]) => ({ nodeId, weight: clampFacetWeight(weight) }))
-    .filter((row) => row.nodeId && row.weight !== 0);
+    .filter((row) => row.nodeId);
   if (useMemory()) {
     memory.interests = memory.interests.filter((row) => row.userId !== input.userId);
     for (const row of next) {

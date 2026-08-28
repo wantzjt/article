@@ -84,7 +84,7 @@ export function newspaperSections(input: {
   exclude: Set<string>;
   interestOrder?: string[];
 }): Array<{ id: string; title: string; rows: WorldFeedRow[] }> {
-  const { graph, now, ranked, exclude, interestOrder = [] } = input;
+  const { graph, now, ranked, interestOrder = [] } = input;
   const publicTopics = graph.topics.filter((topic) => isPublicTopicStatus(topic.status));
   const order = [
     ...interestOrder.filter((id) => NEWSPAPER_AREAS.includes(id as (typeof NEWSPAPER_AREAS)[number])),
@@ -128,7 +128,6 @@ export function newspaperSections(input: {
   const sections: Array<{ id: string; title: string; rows: WorldFeedRow[] }> = [];
   for (const area of order) {
     const items = pool.filter((row) => {
-      if (exclude.has(row.slug)) return false;
       return newspaperAreaForTopic({ slug: row.slug, kind: row.kind, child: row.facetChild }) === area;
     });
     if (items.length === 0) continue;

@@ -110,7 +110,7 @@ export default async function HomePage({
     graph,
     now,
     ranked: payload?.ranked,
-    exclude: new Set(rows.map((row) => row.slug)),
+    exclude: new Set(),
     interestOrder: Object.entries(current?.profile.interests ?? {})
       .sort((a, b) => b[1] - a[1])
       .map(([id]) => id),
@@ -120,11 +120,10 @@ export default async function HomePage({
   return (
     <div className={`space-y-10 ${welcome ? "welcome-in" : ""}`}>
       {frequencyOn && current ? (
-        <section className="space-y-4">
+        <section className="space-y-2">
           {welcome ? <p className="text-[0.9375rem] leading-6">Your Frequency is live.</p> : null}
-          <h1 className="display">Your Frequency</h1>
-          <p className="text-[0.9375rem] leading-6">Tuned to the Topics and signals you care about.</p>
-          <FrequencyBoard rows={frequencyRows(current.profile, names)} />
+          <p className="kicker">Your Frequency</p>
+          <h1 className="display">The World</h1>
         </section>
       ) : (
         <section className="space-y-4">
@@ -143,7 +142,7 @@ export default async function HomePage({
       )}
 
       <section>
-        <h2 className="kicker">{frequencyOn ? "Now" : "The World"}</h2>
+        <h2 className="kicker">{frequencyOn ? "Top stories" : "The World"}</h2>
         <WorldFeed
           rows={rows}
           rest={pulse.rest.map((row) => ({ slug: row.slug, name: row.name }))}
@@ -166,6 +165,12 @@ export default async function HomePage({
           />
         </section>
       ))}
+
+      {frequencyOn && current ? (
+        <section className="space-y-4">
+          <FrequencyBoard rows={frequencyRows(current.profile, names)} />
+        </section>
+      ) : null}
     </div>
   );
 }

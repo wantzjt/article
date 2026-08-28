@@ -246,6 +246,9 @@
   .interest-bubble-live:not(.interest-bubble-on) {
     box-shadow: 0 0 0 1px color-mix(in oklch, var(--signal) 55%, var(--rule));
   }
+  .interest-bubble-kids:not(.interest-bubble-on):not(.interest-bubble-live) {
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--signal) 28%, var(--rule));
+  }
   .interest-settle {
     animation: interest-settle 520ms ease;
   }

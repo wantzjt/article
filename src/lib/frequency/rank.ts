@@ -1,7 +1,7 @@
 import { compileBlocked } from "@/lib/compiler/compile-priority";
 import type { ChangeKind, TopicStatus } from "@/lib/compiler/types";
 import { facetMultiplier, type Facet } from "./facets";
-import { interestWeightForChange } from "./interests";
+import { interestForChange, interestWeightForChange } from "./interests";
 
 export type FrequencyChange = {
   topicId: string;
@@ -87,7 +87,7 @@ export function personalRelevance(change: FrequencyChange, profile: FrequencyPro
 export function hasFollows(profile: FrequencyProfile | null | undefined): boolean {
   if (!profile) return false;
   if (profile.follows.length > 0) return true;
-  return Object.values(profile.interests ?? {}).some((weight) => weight !== 0);
+  return Object.keys(profile.interests ?? {}).length > 0;
 }
 
 /**
@@ -111,8 +111,8 @@ export function rankFrequency(
     const personal = personalRelevance(change, profile);
     const isFollowed = followed.has(change.topicId);
     const viaRelationship = Boolean(change.relatedSlug) && !isFollowed;
-    const interest = interestWeightForChange(profile, change);
-    const cared = !isFollowed && interest > 0;
+    const interest = interestForChange(profile, change);
+    const cared = !isFollowed && interest !== undefined;
     const material = global >= MATERIAL_THRESHOLD || change.changeKind === "disputed" || change.changeKind === "resolved";
     const lowPersonal = personal < 0.7;
     const breakthrough = material && (!isFollowed || lowPersonal || viaRelationship);

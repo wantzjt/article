@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { InterestStudio } from "@/components/interest-studio";
 import { currentUser } from "@/lib/auth/current-user";
-import { interestIdsFromQuery, liveInterestNodes } from "@/lib/frequency/interests";
+import { liveInterestNodes, parseInterestQuery } from "@/lib/frequency/interests";
 import { getGraph } from "@/lib/store/json-store";
 
 export const metadata: Metadata = { title: "Build my Frequency" };
@@ -16,13 +16,11 @@ export default async function StartPage({
   const params = await searchParams;
   const graph = await getGraph();
   const nodes = liveInterestNodes(graph, new Date());
-  const fromNodes = interestIdsFromQuery(params.nodes);
-  const fromTopics = (params.topics ?? "")
-    .split(",")
-    .map((row) => row.trim())
-    .map((slug) => nodes.find((node) => node.slug === slug)?.id)
-    .filter((id): id is string => Boolean(id));
-  const initial = [...new Set([...fromNodes, ...fromTopics])];
+  const initial = parseInterestQuery(params.nodes);
+  for (const slug of (params.topics ?? "").split(",")) {
+    const id = nodes.find((node) => node.slug === slug.trim())?.id;
+    if (id && initial[id] === undefined) initial[id] = 2;
+  }
 
   return (
     <div className="space-y-6">

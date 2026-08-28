@@ -15,6 +15,8 @@ export type LiveInterestNode = InterestDef & {
   present: boolean;
   activity: number;
   moving: boolean;
+  /** True when a child Topic is moving — parent gets a quiet glow. */
+  childMoving: boolean;
   childIds: string[];
 };
 
@@ -46,6 +48,7 @@ const CLUSTERS: InterestDef[] = [
   { id: "models-science", name: "Frontier science", kind: "cluster", parent: "science", slug: null, slugs: [] },
   { id: "media", name: "Media", kind: "cluster", parent: "culture", slug: null, slugs: [] },
   { id: "capital", name: "Capital", kind: "cluster", parent: "markets", slug: null, slugs: [] },
+  { id: "crypto", name: "Crypto", kind: "cluster", parent: "markets", slug: null, slugs: [] },
 ];
 
 const TOPICS: InterestDef[] = [
@@ -110,11 +113,28 @@ export function slugsForSelection(selectedIds: string[]): string[] {
 }
 
 export function interestIdsFromQuery(raw: string | null | undefined): string[] {
-  const known = new Set(INTEREST_TREE.map((row) => row.id));
-  return (raw ?? "")
-    .split(",")
-    .map((row) => row.trim())
-    .filter((id) => known.has(id));
+  return Object.keys(parseInterestQuery(raw));
+}
+
+/** `technology:2,ai:2,robotics:0,crypto:-2,openai` */
+export function parseInterestQuery(raw: string | null | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const part of (raw ?? "").split(",")) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const [id, weightRaw] = trimmed.split(":");
+    if (!BY_ID.has(id)) continue;
+    const parsed = weightRaw === undefined || weightRaw === "" ? 2 : Number(weightRaw);
+    const weight = parsed === -2 || parsed === 0 || parsed === 2 ? parsed : 2;
+    out[id] = weight;
+  }
+  return out;
+}
+
+export function encodeInterestQuery(weights: Record<string, number>): string {
+  return Object.entries(weights)
+    .map(([id, weight]) => (weight === 2 ? id : `${id}:${weight}`))
+    .join(",");
 }
 
 export function areaTitle(id: string): string {
