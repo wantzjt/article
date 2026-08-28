@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { slugsForSelection } from "@/lib/frequency/interests";
 import { classifyFacet, facetMultiplier, inferFacet } from "@/lib/frequency/facets";
 import {
   globalSignificance,
@@ -141,6 +142,21 @@ describe("rankFrequency", () => {
     expect(hasFollows(profile)).toBe(true);
     expect(globalSignificance(bills, now)).toBeGreaterThan(0.62);
     expect(ranked.find((row) => row.slug === "ca-sb-53")?.reasons.join(" ")).toMatch(/breakthrough/);
+  });
+
+  it("lets an area weight surface an unfollowed Topic without following every child", () => {
+    expect(slugsForSelection(["technology", "ai"])).toEqual([]);
+    expect(slugsForSelection(["technology", "openai"])).toEqual(["openai"]);
+    const profile: FrequencyProfile = {
+      userId: "u1",
+      email: "a@b.com",
+      follows: [],
+      facets: {},
+      interests: { technology: 2 },
+    };
+    const ranked = rankFrequency([glm], profile, now);
+    expect(ranked.map((row) => row.slug)).toEqual(["glm-5-3"]);
+    expect(ranked[0].reasons.some((row) => row === "interest")).toBe(true);
   });
 });
 

@@ -229,4 +229,56 @@
   .world-fresh {
     animation: frequency-restream 900ms ease-out;
   }
+  .interest-field {
+    background: color-mix(in oklch, var(--ink) 2.5%, var(--paper));
+  }
+  .interest-bubble {
+    border-color: var(--rule);
+    color: var(--ink);
+    background: var(--paper);
+    animation: interest-drift 14s ease-in-out infinite;
+  }
+  .interest-bubble-on {
+    border-color: var(--ink);
+    animation: none;
+    box-shadow: 0 0 0 1px var(--ink);
+  }
+  .interest-bubble-live:not(.interest-bubble-on) {
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--signal) 55%, var(--rule));
+  }
+  .interest-settle {
+    animation: interest-settle 520ms ease;
+  }
+  .welcome-in {
+    animation: interest-settle 700ms ease;
+  }
+  @keyframes interest-drift {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    40% {
+      translate: 7px -6px;
+    }
+    70% {
+      translate: -6px 5px;
+    }
+  }
+  @keyframes interest-settle {
+    from {
+      opacity: 0.4;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .interest-bubble,
+    .interest-settle,
+    .welcome-in {
+      animation: none;
+    }
+  }
 }

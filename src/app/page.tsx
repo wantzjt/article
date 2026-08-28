@@ -11,6 +11,7 @@ import { buildFrequency } from "@/lib/frequency/engine";
 import { explainWhy, frequencyRows } from "@/lib/frequency/explain";
 import { hasFollows } from "@/lib/frequency/rank";
 import { brand } from "@/lib/brand";
+import { newspaperSections } from "@/lib/render/newspaper";
 import {
   changeLine,
   changeTimestamp,
@@ -105,13 +106,22 @@ export default async function HomePage({
     };
   });
 
+  const sections = newspaperSections({
+    graph,
+    now,
+    ranked: payload?.ranked,
+    exclude: new Set(rows.map((row) => row.slug)),
+    interestOrder: Object.entries(current?.profile.interests ?? {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => id),
+  });
+  const welcome = params.welcome === "1";
+
   return (
-    <div className="space-y-10">
+    <div className={`space-y-10 ${welcome ? "welcome-in" : ""}`}>
       {frequencyOn && current ? (
         <section className="space-y-4">
-          {params.welcome === "1" ? (
-            <p className="text-[0.9375rem] leading-6">Your Frequency is live.</p>
-          ) : null}
+          {welcome ? <p className="text-[0.9375rem] leading-6">Your Frequency is live.</p> : null}
           <h1 className="display">Your Frequency</h1>
           <p className="text-[0.9375rem] leading-6">Tuned to the Topics and signals you care about.</p>
           <FrequencyBoard rows={frequencyRows(current.profile, names)} />
@@ -143,6 +153,19 @@ export default async function HomePage({
           topics={catalog}
         />
       </section>
+
+      {sections.map((section) => (
+        <section key={section.id}>
+          <h2 className="kicker">{section.title}</h2>
+          <WorldFeed
+            rows={section.rows.map((row) => ({ ...row, why: null }))}
+            orderKey={`${section.id}-paper`}
+            personalized={false}
+            now={now}
+            topics={catalog}
+          />
+        </section>
+      ))}
     </div>
   );
 }

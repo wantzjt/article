@@ -18,9 +18,10 @@ type MemoryDb = {
   tokens: Array<{ id: string; userId: string; tokenHash: string; expiresAt: string; usedAt: string | null }>;
   follows: Array<FollowState & { userId: string }>;
   facets: Array<{ userId: string; topicId: string; facet: Facet; weight: number }>;
+  interests: Array<{ userId: string; nodeId: string; weight: number }>;
 };
 
-const memory: MemoryDb = { users: [], tokens: [], follows: [], facets: [] };
+const memory: MemoryDb = { users: [], tokens: [], follows: [], facets: [], interests: [] };
 
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS frequency_users (
@@ -59,6 +60,12 @@ const SCHEMA_STATEMENTS = [
     facet text NOT NULL,
     child text,
     classified_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS frequency_interests (
+    user_id text NOT NULL REFERENCES frequency_users(id) ON DELETE CASCADE,
+    node_id text NOT NULL,
+    weight integer NOT NULL DEFAULT 2,
+    PRIMARY KEY (user_id, node_id)
   )`,
 ];
 
@@ -186,13 +193,15 @@ export async function getProfile(userId: string): Promise<FrequencyProfile | nul
       email: user.email,
       follows: memory.follows.filter((row) => row.userId === userId).map(({ userId: _id, ...rest }) => rest),
       facets: facetsMap(memory.facets.filter((row) => row.userId === userId)),
+      interests: interestsMap(memory.interests.filter((row) => row.userId === userId)),
     };
   }
   await ensureFrequencySchema();
   const sql = db();
-  const [follows, facets] = await Promise.all([
+  const [follows, facets, interests] = await Promise.all([
     sql.query("SELECT topic_id, weight, muted FROM frequency_follows WHERE user_id = $1", [userId]),
     sql.query("SELECT topic_id, facet, weight FROM frequency_facets WHERE user_id = $1", [userId]),
+    sql.query("SELECT node_id, weight FROM frequency_interests WHERE user_id = $1", [userId]).catch(() => []),
   ]);
   return {
     userId: user.id,
@@ -210,6 +219,12 @@ export async function getProfile(userId: string): Promise<FrequencyProfile | nul
         weight: Number(row.weight ?? 0),
       })),
     ),
+    interests: interestsMap(
+      (interests as Array<Record<string, unknown>>).map((row) => ({
+        nodeId: String(row.node_id),
+        weight: Number(row.weight ?? 0),
+      })),
+    ),
   };
 }
 
@@ -223,7 +238,10 @@ export async function listSubscribedProfiles(): Promise<FrequencyProfile[]> {
   const rows = await db().query(
     `SELECT id FROM frequency_users
      WHERE unsubscribed_at IS NULL
-       AND id IN (SELECT DISTINCT user_id FROM frequency_follows)`,
+       AND (
+         id IN (SELECT DISTINCT user_id FROM frequency_follows)
+         OR id IN (SELECT DISTINCT user_id FROM frequency_interests)
+       )`,
   );
   const profiles = await Promise.all(rows.map((row) => getProfile(String(row.id))));
   return profiles.filter((row): row is FrequencyProfile => Boolean(row));
@@ -326,11 +344,39 @@ export async function setUnsubscribed(userId: string, unsubscribed: boolean): Pr
   await db().query("UPDATE frequency_users SET unsubscribed_at = $1 WHERE id = $2", [at, userId]);
 }
 
+export async function replaceInterests(input: {
+  userId: string;
+  weights: Record<string, number>;
+}): Promise<FrequencyProfile | null> {
+  const next = Object.entries(input.weights)
+    .map(([nodeId, weight]) => ({ nodeId, weight: clampFacetWeight(weight) }))
+    .filter((row) => row.nodeId && row.weight !== 0);
+  if (useMemory()) {
+    memory.interests = memory.interests.filter((row) => row.userId !== input.userId);
+    for (const row of next) {
+      memory.interests.push({ userId: input.userId, nodeId: row.nodeId, weight: row.weight });
+    }
+    return getProfile(input.userId);
+  }
+  await ensureFrequencySchema();
+  const sql = db();
+  await sql.query("DELETE FROM frequency_interests WHERE user_id = $1", [input.userId]);
+  for (const row of next) {
+    await sql.query(
+      `INSERT INTO frequency_interests (user_id, node_id, weight) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, node_id) DO UPDATE SET weight = EXCLUDED.weight`,
+      [input.userId, row.nodeId, row.weight],
+    );
+  }
+  return getProfile(input.userId);
+}
+
 export function resetFrequencyMemory(): void {
   memory.users = [];
   memory.tokens = [];
   memory.follows = [];
   memory.facets = [];
+  memory.interests = [];
 }
 
 function mapUser(row: Record<string, unknown>): FrequencyUser {
@@ -355,6 +401,15 @@ function facetsMap(
     if (!isFacet(row.facet)) continue;
     out[row.topicId] ??= {};
     out[row.topicId][row.facet] = row.weight;
+  }
+  return out;
+}
+
+function interestsMap(rows: Array<{ nodeId: string; weight: number }>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const row of rows) {
+    if (!row.nodeId) continue;
+    out[row.nodeId] = clampFacetWeight(row.weight);
   }
   return out;
 }

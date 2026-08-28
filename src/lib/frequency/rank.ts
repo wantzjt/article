@@ -1,6 +1,7 @@
 import { compileBlocked } from "@/lib/compiler/compile-priority";
 import type { ChangeKind, TopicStatus } from "@/lib/compiler/types";
 import { facetMultiplier, type Facet } from "./facets";
+import { interestWeightForChange } from "./interests";
 
 export type FrequencyChange = {
   topicId: string;
@@ -36,6 +37,8 @@ export type FrequencyProfile = {
   follows: FollowState[];
   /** topicId → facet → −2…+2 */
   facets: Record<string, Partial<Record<Facet, number>>>;
+  /** Interest node id → −2…+2. Parent care is not follow-all-children. */
+  interests?: Record<string, number>;
 };
 
 export type RankedChange = FrequencyChange & {
@@ -71,14 +74,20 @@ export function globalSignificance(change: FrequencyChange, now = new Date()): n
 
 export function personalRelevance(change: FrequencyChange, profile: FrequencyProfile): number {
   const follow = profile.follows.find((row) => row.topicId === change.topicId);
-  if (!follow || follow.muted) return UNFOLLOWED_PERSONAL;
-  const followWeight = follow.weight > 0 ? follow.weight : 1;
-  const facetWeight = profile.facets[change.topicId]?.[change.facet] ?? 0;
-  return followWeight * facetMultiplier(facetWeight);
+  if (follow && !follow.muted) {
+    const followWeight = follow.weight > 0 ? follow.weight : 1;
+    const facetWeight = profile.facets[change.topicId]?.[change.facet] ?? 0;
+    return followWeight * facetMultiplier(facetWeight);
+  }
+  const interest = interestWeightForChange(profile, change);
+  if (interest !== 0) return UNFOLLOWED_PERSONAL * facetMultiplier(interest);
+  return UNFOLLOWED_PERSONAL;
 }
 
 export function hasFollows(profile: FrequencyProfile | null | undefined): boolean {
-  return Boolean(profile && profile.follows.length > 0);
+  if (!profile) return false;
+  if (profile.follows.length > 0) return true;
+  return Object.values(profile.interests ?? {}).some((weight) => weight !== 0);
 }
 
 /**
@@ -102,12 +111,15 @@ export function rankFrequency(
     const personal = personalRelevance(change, profile);
     const isFollowed = followed.has(change.topicId);
     const viaRelationship = Boolean(change.relatedSlug) && !isFollowed;
+    const interest = interestWeightForChange(profile, change);
+    const cared = !isFollowed && interest > 0;
     const material = global >= MATERIAL_THRESHOLD || change.changeKind === "disputed" || change.changeKind === "resolved";
     const lowPersonal = personal < 0.7;
     const breakthrough = material && (!isFollowed || lowPersonal || viaRelationship);
-    if (!isFollowed && !breakthrough && !viaRelationship) continue;
+    if (!isFollowed && !breakthrough && !viaRelationship && !cared) continue;
     const reasons: string[] = [];
     if (isFollowed) reasons.push("followed");
+    else if (cared) reasons.push("interest");
     else if (viaRelationship) reasons.push(`via ${change.relatedSlug}`);
     else reasons.push("unfollowed");
     reasons.push(`facet ${change.facet}${change.facetChild ? `/${change.facetChild}` : ""} ×${personal.toFixed(2)}`);
@@ -117,7 +129,9 @@ export function rankFrequency(
     if (breakthrough) reasons.push("breakthrough material");
     const score = isFollowed
       ? global * personal + (breakthrough ? global * 0.35 * (1 - Math.min(personal, 1)) : 0)
-      : global * UNFOLLOWED_PERSONAL + global * 0.55;
+      : cared
+        ? global * Math.min(1, personal * 2.8)
+        : global * UNFOLLOWED_PERSONAL + global * 0.55;
     ranked.push({
       ...change,
       globalSignificance: global,
