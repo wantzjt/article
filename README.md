@@ -1,97 +1,100 @@
-# Article.fm
-
-Provisional public name. Internal compiler: CitationForge — not shown on the masthead.
+# article.fm
 
 **News around things, not articles.**
 
-This repo is a living topic graph: Topic → Claim → Source → Change. The public site renders that graph. It does not generate an article and hang citations on afterward.
+[article.fm](https://article.fm) is a living evidence graph. Each Topic is a dossier of claims, sources, and typed Changes. The site does not write an article and hang citations on afterward.
 
-## Promo path (do not bypass)
+Truth is shared. Attention is personal. **Frequency** is a projection of the same graph, not a rewrite of it.
 
-- **Model:** Vercel AI Gateway, `PRIMARY_MODEL=zai/glm-5.2` (Blackbox/eve free through 2026-08-27 23:59 CT). After that window, default flips to metered `zai/glm-5.3` under `$8`. No silent 5.3 fallback. OIDC (`vercel env pull`). No direct Z.ai key.
-- **Exa:** `gateway.tools.exaSearch()` on AI Gateway / Eve. Free through 2026-08-31. **No `EXA_API_KEY`. No Marketplace PAYG.**
-- **Model spend guard:** `MAX_DAILY_MODEL_SPEND_USD` (default 8). This does **not** cap Exa promo search.
-- **Database:** Neon free plan when Marketplace provisioning completes. Until then the committed GLM-5.3 fixture is enough to review the topic page.
+## Product loop
+
+**read → discover → tune → personalize → inspect evidence → ask → Morning Frequency**
+
+- **The World** — what’s moving, compressed like a newspaper. Depth lives on the Topic.
+- **Topic dossier** — claims, sources, What changed, relations.
+- **Your Frequency** — follow leaf Topics, weight interest areas, mute as the only hard exclude.
+- **Grounded Ask** — answers from the graph, not an open web mill.
+- **Morning Frequency** — email of what changed on what you follow.
+
+Starting coverage is AI and technology. Expanding continuously.
+
+## How the graph works
+
+```
+Topic → Claim → Source → Change
+```
+
+A **Claim** is an atomic fact with status (`single_source`, `supported`, `disputed`, …) and linked excerpts. A **Change** is a typed delta over that graph, not generated prose:
+
+| Kind | Meaning |
+| --- | --- |
+| NEW | First public claim |
+| UPDATED | Same claim, new wording |
+| CONFIRMED | `single_source` → `supported` |
+| DISPUTED | Competing evidence |
+| RESOLVED | Dispute cleared |
+| RELATIONSHIP | Typed edge between Topics |
+| INVALIDATED | Claim retracted |
+
+Every Change carries Topic(s), facets, claims, sources, materiality, timestamp, and prior state.
+
+Mute is the only hard exclude. Parent interest weights are not follow-all.
+
+## Stack
+
+- **App:** Next.js on Vercel — [article.fm](https://article.fm)
+- **Graph store:** Neon Postgres (JSON fixture for local review)
+- **Discover:** Exa via `gateway.tools.exaSearch()` on Vercel AI Gateway (no `EXA_API_KEY`)
+- **Compile:** extract → verify → render through AI Gateway (`PRIMARY_MODEL`)
+- **Mail:** Resend for magic-link auth and Morning Frequency
+- **Audio:** optional TTS on the launch demo Topic only (`glm-5-3`)
+
+Internal compiler name: CitationForge. Not shown on the masthead.
 
 ## Local
 
 ```bash
 npm install
-npx vercel link --yes --scope tarx --project article
-npx vercel env pull .env.local --yes
+cp .env.example .env.local   # or: npx vercel env pull .env.local
 npm test
 npm run dev
 ```
 
-Open `/topic/glm-5-3`. No keys required for the fixture.
+Open [`/topic/glm-5-3`](http://localhost:3000/topic/glm-5-3). The committed fixture is enough to review a Topic page with no keys.
 
-Live ingest (Gateway OIDC required):
+Useful env (see `.env.example`):
 
-```bash
-npm run ingest -- glm-5-3
-```
+| Variable | Role |
+| --- | --- |
+| `DATABASE_URL` | Neon. Omit to serve the fixture. |
+| `AI_GATEWAY_API_KEY` / Vercel OIDC | Gateway for discover + compile |
+| `PRIMARY_MODEL` | Compile model |
+| `MAX_DAILY_MODEL_SPEND_USD` | Model-token cap (does not cap Exa) |
+| `AUTH_SECRET` | Frequency session cookie |
+| `RESEND_API_KEY` | Magic link + morning mail |
+| `ADMIN_SECRET` | `POST /api/admin/ingest` |
 
-Taxonomy: `docs/TAXONOMY.md`. Topic kinds map to Exa categories; sources store `exa_category` / `query_tag` / `topic_id`.
+Never set `EXA_API_KEY`. Search is Gateway-only.
 
-Exa warehouse (discover-only, no compile, no claims):
+## Harvest and compile (optional, spends credits)
 
-```bash
-npm run ocean:exa
-```
-
-Pulls `gateway.tools.exaSearch()` for every AI seed plus `data/seeds-broad.json` (chips, cloud, robotics, policy, eval, agent/vector infra). Stops at **2026-08-30 23:59 America/Chicago**. Resume-safe. Does not write claims. Report: `artifacts/exa-ocean-report.md`.
-
-Finance arm (off the night queue; 21 bounded seeds in `src/lib/seed/finance.ts`):
-
-```bash
-# Discover-only; do not persist while ocean:night holds the graph lock
-npm run finance:discover -- --dry-run andreessen-horowitz
-# Persist sources after the night runner stops; compile is optional and spends model budget
-npm run finance:discover -- andreessen-horowitz
-npm run finance:discover -- --compile openai-funding
-```
-
-Uses `gateway.tools.exaSearch()` only. Drops Crunchbase/PitchBook. Valuation claims never graduate to consensus-supported. TARX fundraising list: `artifacts/tarx-lead-investors.md`.
-
-Night runner (bounded overnight compile — do not use `npm run ocean` for the demo window):
+Discover banks sources. Compile turns warehouse evidence into claims and Changes. These jobs are **not** required to run the site.
 
 ```bash
-npm run ocean:night
+npm run ocean:blitz      # Exa discover, no claims
+npm run compile:yield    # extract/verify low-yield and re-extract queues
+npm run ocean:night      # bounded overnight compile
 ```
 
-Stops at **06:00 America/Chicago**, **$6.50** model spend today, empty queue, or Exa hard stop (`2026-08-30 23:59 CT`). Compile stays `PRIMARY_MODEL=zai/glm-5.2`. No silent 5.3 fallback. No `EXA_API_KEY`. Resume-safe via `data/ocean-night-progress.json`. Writes `artifacts/ocean-night-report.json` and `artifacts/OCEAN_REPORT.md` on each topic finish and on stop. Public snapshot: `GET /api/status`. A second `npm run ocean:night` exits 2 if the lock PID is still alive.
+Exa on AI Gateway is **metered** (the Aug 31, 2026 promo is over). Model extract/verify also bills Gateway. Stop those processes if you do not want spend.
 
-**Stop cleanly (writes the morning report, then exits):**
+## Tests
 
 ```bash
-kill -INT $(pgrep -f 'scripts/night-ocean.ts' | head -1)
-# or Ctrl+C in the ocean:night terminal
-# do not kill -9 — that skips the report flush
+npm test
+npx tsc --noEmit
 ```
 
-## Morning checklist
+## License
 
-Do this in order. Trust `/api/status` and the report files; do not scrape harvest logs.
-
-1. [Explore](https://article-gamma-rose.vercel.app/) — count What Moved
-2. [`/api/status`](https://article-gamma-rose.vercel.app/api/status) — `topics.strong` / `provisional` / `stub`, `claims`, `urls`, `whatMoved`, `model`, `spendUsd`, `spendCapUsd`, `hardStopAt`, `runner`, `lastError`
-3. [GLM-5.3 Play](https://article-gamma-rose.vercel.app/topic/glm-5-3) — cache hit only; other slugs have no Play
-4. [Anthropic](https://article-gamma-rose.vercel.app/topic/anthropic)
-5. [OpenAI](https://article-gamma-rose.vercel.app/topic/openai)
-6. Local: `artifacts/OCEAN_REPORT.md` and `artifacts/ocean-night-report.json`
-
-Admin HTTP trigger (secret in `ADMIN_SECRET`):
-
-```
-POST /api/admin/ingest
-Authorization: Bearer $ADMIN_SECRET
-{"slug":"glm-5-3"}
-```
-
-## Audio (Phase B)
-
-Play is enabled only on `glm-5-3`. Speech is generated from `scriptFromClaims` via AI Gateway model `fish-audio/s2.1-pro` (promo through 2026-09-18). Audio is cached by `topic_id + material_hash` in Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set, otherwise `data/audio/` (gitignored). No Fish API key. No autoplay.
-
-## Seed
-
-~50 checked-in AI entities in `src/lib/seed/entities.ts`. New topics are not created from arbitrary named strings. Launch demo topic: **GLM-5.3**.
+MIT. See [LICENSE](LICENSE).
